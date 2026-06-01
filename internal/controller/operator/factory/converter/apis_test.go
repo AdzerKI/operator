@@ -241,7 +241,7 @@ func TestConvertPodEndpoints(t *testing.T) {
 			HTTPConfigWithProxy: promv1.HTTPConfigWithProxy{
 				HTTPConfig: promv1.HTTPConfig{
 					HTTPConfigWithoutTLS: promv1.HTTPConfigWithoutTLS{
-						BearerTokenSecret: &corev1.SecretKeySelector{},
+						BearerTokenSecret: &corev1.SecretKeySelector{}, //nolint:staticcheck
 					},
 					TLSConfig: &promv1.SafeTLSConfig{
 						CA: promv1.SecretOrConfigMap{
@@ -274,7 +274,7 @@ func TestConvertPodEndpoints(t *testing.T) {
 			HTTPConfigWithProxy: promv1.HTTPConfigWithProxy{
 				HTTPConfig: promv1.HTTPConfig{
 					HTTPConfigWithoutTLS: promv1.HTTPConfigWithoutTLS{
-						BearerTokenSecret: &corev1.SecretKeySelector{},
+						BearerTokenSecret: &corev1.SecretKeySelector{}, //nolint:staticcheck
 					},
 					TLSConfig: &promv1.SafeTLSConfig{
 						InsecureSkipVerify: ptr.To(true),
@@ -311,7 +311,7 @@ func TestConvertPodEndpoints(t *testing.T) {
 			HTTPConfigWithProxy: promv1.HTTPConfigWithProxy{
 				HTTPConfig: promv1.HTTPConfig{
 					HTTPConfigWithoutTLS: promv1.HTTPConfigWithoutTLS{
-						BearerTokenSecret: &corev1.SecretKeySelector{Key: "bearer"},
+						BearerTokenSecret: &corev1.SecretKeySelector{Key: "bearer"}, //nolint:staticcheck
 						BasicAuth: &promv1.BasicAuth{
 							Username: corev1.SecretKeySelector{Key: "username"},
 							Password: corev1.SecretKeySelector{Key: "password"},

@@ -4414,6 +4414,8 @@ spec:
                                         type: string
                                       namespace:
                                         type: string
+                                      pool:
+                                        type: string
                                       useExtraService:
                                         type: boolean
                                     required:
@@ -4421,6 +4423,8 @@ spec:
                                     - namespace
                                     type: object
                                   type: array
+                                pool:
+                                  type: string
                                 useExtraService:
                                   type: boolean
                               required:
@@ -5673,6 +5677,8 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          pool:
+                                            type: string
                                           useExtraService:
                                             type: boolean
                                         required:
@@ -5680,6 +5686,8 @@ spec:
                                         - namespace
                                         type: object
                                       type: array
+                                    pool:
+                                      type: string
                                     useExtraService:
                                       type: boolean
                                   required:
@@ -20357,6 +20365,8 @@ spec:
                                 type: string
                               namespace:
                                 type: string
+                              pool:
+                                type: string
                               useExtraService:
                                 type: boolean
                             required:
@@ -20364,6 +20374,8 @@ spec:
                             - namespace
                             type: object
                           type: array
+                        pool:
+                          type: string
                         useExtraService:
                           type: boolean
                       required:
@@ -21616,6 +21628,8 @@ spec:
                                     type: string
                                   namespace:
                                     type: string
+                                  pool:
+                                    type: string
                                   useExtraService:
                                     type: boolean
                                 required:
@@ -21623,6 +21637,8 @@ spec:
                                 - namespace
                                 type: object
                               type: array
+                            pool:
+                              type: string
                             useExtraService:
                               type: boolean
                           required:
@@ -22290,6 +22306,24 @@ spec:
                 type: object
               paused:
                 type: boolean
+              pools:
+                items:
+                  properties:
+                    name:
+                      maxLength: 16
+                      pattern: ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$
+                      type: string
+                    vminsert:
+                      x-kubernetes-preserve-unknown-fields: true
+                    vmstorage:
+                      x-kubernetes-preserve-unknown-fields: true
+                  required:
+                  - name
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
               replicationFactor:
                 format: int32
                 type: integer
@@ -24748,6 +24782,9 @@ spec:
                       - retention
                       type: object
                     type: array
+                  retentionPeriod:
+                    pattern: ^[0-9]+(h|d|w|y)?$
+                    type: string
                   revisionHistoryLimitCount:
                     format: int32
                     type: integer
@@ -25515,6 +25552,8 @@ spec:
                                         type: string
                                       namespace:
                                         type: string
+                                      pool:
+                                        type: string
                                       useExtraService:
                                         type: boolean
                                     required:
@@ -25522,6 +25561,8 @@ spec:
                                     - namespace
                                     type: object
                                   type: array
+                                pool:
+                                  type: string
                                 useExtraService:
                                   type: boolean
                               required:
@@ -26774,6 +26815,8 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          pool:
+                                            type: string
                                           useExtraService:
                                             type: boolean
                                         required:
@@ -26781,6 +26824,8 @@ spec:
                                         - namespace
                                         type: object
                                       type: array
+                                    pool:
+                                      type: string
                                     useExtraService:
                                       type: boolean
                                   required:
@@ -42753,6 +42798,8 @@ spec:
                                 type: string
                               namespace:
                                 type: string
+                              pool:
+                                type: string
                               useExtraService:
                                 type: boolean
                             required:
@@ -42760,6 +42807,8 @@ spec:
                             - namespace
                             type: object
                           type: array
+                        pool:
+                          type: string
                         useExtraService:
                           type: boolean
                       required:

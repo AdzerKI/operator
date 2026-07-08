@@ -31,8 +31,10 @@ func newVLAgent(name, namespace string, owner metav1.OwnerReference) *vmv1.VLAge
 			OwnerReferences:   []metav1.OwnerReference{owner},
 		},
 		Spec: vmv1.VLAgentSpec{
-			CommonAppsParams: vmv1beta1.CommonAppsParams{
-				ReplicaCount: ptr.To[int32](1),
+			StandardAppsParams: vmv1beta1.StandardAppsParams{
+				CommonAppsParams: vmv1beta1.CommonAppsParams{
+					ReplicaCount: ptr.To[int32](1),
+				},
 			},
 		},
 	}
@@ -50,18 +52,24 @@ func newVLCluster(name, namespace, version string, owner metav1.OwnerReference) 
 		Spec: vmv1.VLClusterSpec{
 			ClusterVersion: version,
 			VLSelect: &vmv1.VLSelect{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To[int32](1),
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To[int32](1),
+					},
 				},
 			},
 			VLInsert: &vmv1.VLInsert{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To[int32](1),
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To[int32](1),
+					},
 				},
 			},
 			VLStorage: &vmv1.VLStorage{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To[int32](1),
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To[int32](1),
+					},
 				},
 			},
 		},

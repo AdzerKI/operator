@@ -53,7 +53,7 @@ func updateCRDObjURLs(ctx context.Context, rclient client.Client, crd *vmv1beta1
 		}
 		crdObj.SetName(nsn.Name)
 		crdObj.SetNamespace(nsn.Namespace)
-		url, err := getAsURLObject(ctx, rclient, crdObj, nsn.UseExtraService)
+		url, err := getAsURLObject(ctx, rclient, crdObj, nsn)
 		if err != nil {
 			if !build.IsNotFound(err) {
 				return fmt.Errorf("cannot get object as url: %w", err)
@@ -173,10 +173,10 @@ func createVMUserSecrets(ctx context.Context, rclient client.Client, secrets []*
 
 type objectWithURL interface {
 	client.Object
-	AsURL(isExtra bool) string
+	AsURL(nsn vmv1beta1.NamespacedName) string
 }
 
-func getAsURLObject(ctx context.Context, rclient client.Client, objT objectWithURL, isExtra bool) (string, error) {
+func getAsURLObject(ctx context.Context, rclient client.Client, objT objectWithURL, nsn vmv1beta1.NamespacedName) (string, error) {
 	obj := objT.(client.Object)
 	// dirty hack to restore original type of vmcluster or vlcluster
 	// since cluster type erased by wrapping it into clusterWithURL
@@ -191,7 +191,7 @@ func getAsURLObject(ctx context.Context, rclient client.Client, objT objectWithU
 		}
 		return "", fmt.Errorf("cannot get object by given ref namespace=%q,name=%q: %w", obj.GetNamespace(), obj.GetName(), err)
 	}
-	return objT.AsURL(isExtra), nil
+	return objT.AsURL(nsn), nil
 }
 
 func (pos *parsedObjects) addAuthCredentialsBuildSecrets(ac *build.AssetsCache) (needToCreateSecrets []*corev1.Secret, needToUpdateSecrets []*corev1.Secret, resultErr error) {
@@ -335,33 +335,78 @@ type unwrapObject interface {
 	origin() client.Object
 }
 
-var clusterComponentToURL = map[string]func(obj client.Object, isExtra bool) string{
-	"vminsert": func(obj client.Object, isExtra bool) string {
-		return obj.(*vmv1beta1.VMCluster).AsURL(vmv1beta1.ClusterComponentInsert, isExtra)
+var clusterComponentToURL = map[string]func(obj client.Object, nsn vmv1beta1.NamespacedName) string{
+	"vminsert": func(obj client.Object, nsn vmv1beta1.NamespacedName) string {
+		cr := obj.(*vmv1beta1.VMCluster)
+		rawURL := cr.AsURL(vmv1beta1.ClusterComponentInsert, nsn.UseExtraService)
+		if cr.Spec.VMInsert == nil {
+			return rawURL
+		}
+		return asURLWithListener(rawURL, cr.Spec.VMInsert.HTTPListeners, nsn.ListenerName)
 	},
-	"vmselect": func(obj client.Object, isExtra bool) string {
-		return obj.(*vmv1beta1.VMCluster).AsURL(vmv1beta1.ClusterComponentSelect, isExtra)
+	"vmselect": func(obj client.Object, nsn vmv1beta1.NamespacedName) string {
+		cr := obj.(*vmv1beta1.VMCluster)
+		rawURL := cr.AsURL(vmv1beta1.ClusterComponentSelect, nsn.UseExtraService)
+		if cr.Spec.VMSelect == nil {
+			return rawURL
+		}
+		return asURLWithListener(rawURL, cr.Spec.VMSelect.HTTPListeners, nsn.ListenerName)
 	},
-	"vmstorage": func(obj client.Object, isExtra bool) string {
-		return obj.(*vmv1beta1.VMCluster).AsURL(vmv1beta1.ClusterComponentStorage, isExtra)
+	"vmstorage": func(obj client.Object, nsn vmv1beta1.NamespacedName) string {
+		cr := obj.(*vmv1beta1.VMCluster)
+		rawURL := cr.AsURL(vmv1beta1.ClusterComponentStorage, nsn.UseExtraService)
+		if cr.Spec.VMStorage == nil {
+			return rawURL
+		}
+		return asURLWithListener(rawURL, cr.Spec.VMStorage.HTTPListeners, nsn.ListenerName)
 	},
-	"vlinsert": func(obj client.Object, isExtra bool) string {
-		return obj.(*vmv1.VLCluster).AsURL(vmv1beta1.ClusterComponentInsert, isExtra)
+	"vlinsert": func(obj client.Object, nsn vmv1beta1.NamespacedName) string {
+		cr := obj.(*vmv1.VLCluster)
+		rawURL := cr.AsURL(vmv1beta1.ClusterComponentInsert, nsn.UseExtraService)
+		if cr.Spec.VLInsert == nil {
+			return rawURL
+		}
+		return asURLWithListener(rawURL, cr.Spec.VLInsert.HTTPListeners, nsn.ListenerName)
 	},
-	"vlselect": func(obj client.Object, isExtra bool) string {
-		return obj.(*vmv1.VLCluster).AsURL(vmv1beta1.ClusterComponentSelect, isExtra)
+	"vlselect": func(obj client.Object, nsn vmv1beta1.NamespacedName) string {
+		cr := obj.(*vmv1.VLCluster)
+		rawURL := cr.AsURL(vmv1beta1.ClusterComponentSelect, nsn.UseExtraService)
+		if cr.Spec.VLSelect == nil {
+			return rawURL
+		}
+		return asURLWithListener(rawURL, cr.Spec.VLSelect.HTTPListeners, nsn.ListenerName)
 	},
-	"vlstorage": func(obj client.Object, isExtra bool) string {
-		return obj.(*vmv1.VLCluster).AsURL(vmv1beta1.ClusterComponentStorage, isExtra)
+	"vlstorage": func(obj client.Object, nsn vmv1beta1.NamespacedName) string {
+		cr := obj.(*vmv1.VLCluster)
+		rawURL := cr.AsURL(vmv1beta1.ClusterComponentStorage, nsn.UseExtraService)
+		if cr.Spec.VLStorage == nil {
+			return rawURL
+		}
+		return asURLWithListener(rawURL, cr.Spec.VLStorage.HTTPListeners, nsn.ListenerName)
 	},
-	"vtinsert": func(obj client.Object, isExtra bool) string {
-		return obj.(*vmv1.VTCluster).AsURL(vmv1beta1.ClusterComponentInsert, isExtra)
+	"vtinsert": func(obj client.Object, nsn vmv1beta1.NamespacedName) string {
+		cr := obj.(*vmv1.VTCluster)
+		rawURL := cr.AsURL(vmv1beta1.ClusterComponentInsert, nsn.UseExtraService)
+		if cr.Spec.Insert == nil {
+			return rawURL
+		}
+		return asURLWithListener(rawURL, cr.Spec.Insert.HTTPListeners, nsn.ListenerName)
 	},
-	"vtselect": func(obj client.Object, isExtra bool) string {
-		return obj.(*vmv1.VTCluster).AsURL(vmv1beta1.ClusterComponentSelect, isExtra)
+	"vtselect": func(obj client.Object, nsn vmv1beta1.NamespacedName) string {
+		cr := obj.(*vmv1.VTCluster)
+		rawURL := cr.AsURL(vmv1beta1.ClusterComponentSelect, nsn.UseExtraService)
+		if cr.Spec.Select == nil {
+			return rawURL
+		}
+		return asURLWithListener(rawURL, cr.Spec.Select.HTTPListeners, nsn.ListenerName)
 	},
-	"vtstorage": func(obj client.Object, isExtra bool) string {
-		return obj.(*vmv1.VTCluster).AsURL(vmv1beta1.ClusterComponentStorage, isExtra)
+	"vtstorage": func(obj client.Object, nsn vmv1beta1.NamespacedName) string {
+		cr := obj.(*vmv1.VTCluster)
+		rawURL := cr.AsURL(vmv1beta1.ClusterComponentStorage, nsn.UseExtraService)
+		if cr.Spec.Storage == nil {
+			return rawURL
+		}
+		return asURLWithListener(rawURL, cr.Spec.Storage.HTTPListeners, nsn.ListenerName)
 	},
 }
 
@@ -391,12 +436,12 @@ func (c *clusterWithURL) origin() client.Object {
 }
 
 // AsURL implements AsURL interface
-func (c *clusterWithURL) AsURL(isExtra bool) string {
+func (c *clusterWithURL) AsURL(nsn vmv1beta1.NamespacedName) string {
 	builder, ok := clusterComponentToURL[c.component]
 	if !ok {
 		panic(fmt.Sprintf("BUG: not expected component=%q for clusterWithURL object", c.component))
 	}
-	return builder(c.Object, isExtra)
+	return builder(c.Object, nsn)
 }
 
 // generateVMAuthConfig create VMAuth cfg for given Users.
@@ -1098,4 +1143,36 @@ func addVMSelectPaths(src []string) []string {
 		"/prometheus/api/v1/notifiers",
 		"/prometheus/api/v1/query_exemplars",
 	)
+}
+
+// asURLWithListener substitutes the scheme and port of rawURL with those of the
+// named HTTPListener. Returns rawURL unchanged when listenerName is empty or the
+// listener is not found.
+func asURLWithListener(rawURL string, listeners []vmv1beta1.HTTPListener, listenerName string) string {
+	if listenerName == "" {
+		return rawURL
+	}
+	var l *vmv1beta1.HTTPListener
+	for i := range listeners {
+		if listeners[i].Name == listenerName {
+			l = &listeners[i]
+			break
+		}
+	}
+	if l == nil {
+		return rawURL
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	if l.TLS != nil && *l.TLS {
+		u.Scheme = "https"
+	} else {
+		u.Scheme = "http"
+	}
+	if port := l.AddrPort(); port != "" {
+		u.Host = u.Hostname() + ":" + port
+	}
+	return u.String()
 }

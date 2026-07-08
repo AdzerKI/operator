@@ -804,9 +804,11 @@ func TestBuildConfigReloaderContainer(t *testing.T) {
 				Name:      "base",
 			},
 			Spec: vmv1beta1.VMAlertSpec{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ExtraArgs: map[string]string{
-						"reloadAuthKey": "test",
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ExtraArgs: map[string]string{
+							"reloadAuthKey": "test",
+						},
 					},
 				},
 			},
@@ -938,8 +940,10 @@ func TestBuildConfigReloaderContainer(t *testing.T) {
 				Name:      "base",
 			},
 			Spec: vmv1beta1.VMAlertSpec{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ConfigMaps: []string{"extra-template-1", "extra-template-2"},
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ConfigMaps: []string{"extra-template-1", "extra-template-2"},
+					},
 				},
 			},
 		},

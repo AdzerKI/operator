@@ -266,12 +266,12 @@ type VTInsert struct {
 	// +optional
 	RollingUpdate *appsv1.RollingUpdateDeployment `json:"rollingUpdate,omitempty"`
 
-	vmv1beta1.CommonAppsParams `json:",inline"`
+	vmv1beta1.StandardAppsParams `json:",inline"`
 }
 
 // UseProxyProtocol implements build.probeCRD interface
 func (cr *VTInsert) UseProxyProtocol() bool {
-	return vmv1beta1.UseProxyProtocol(cr.ExtraArgs)
+	return cr.StandardAppsParams.UseProxyProtocol()
 }
 
 // ProbePath implements build.probeCRD interface
@@ -281,11 +281,16 @@ func (cr *VTInsert) ProbePath() string {
 
 // ProbeScheme implements build.probeCRD interface
 func (cr *VTInsert) ProbeScheme() string {
-	return strings.ToUpper(vmv1beta1.HTTPProtoFromFlags(cr.ExtraArgs))
+	return strings.ToUpper(cr.StandardAppsParams.Proto())
 }
 
 // ProbePort implements build.probeCRD interface
 func (cr *VTInsert) ProbePort() string {
+	if l := cr.StandardAppsParams.Primary(); l != nil {
+		if port := l.AddrPort(); port != "" {
+			return port
+		}
+	}
 	return cr.Port
 }
 
@@ -309,7 +314,7 @@ func (cr *VTInsert) GetExtraArgs() map[string]string {
 
 // UseTLS returns true if TLS is enabled
 func (cr *VTInsert) UseTLS() bool {
-	return vmv1beta1.UseTLS(cr.ExtraArgs)
+	return cr.Proto() == "https"
 }
 
 // ServiceScrape returns overrides for serviceScrape builder
@@ -374,7 +379,7 @@ type VTSelect struct {
 	// ExtraStorageNodes - defines additional storage nodes to VTSelect
 	ExtraStorageNodes []VTStorageNode `json:"extraStorageNodes,omitempty"`
 
-	vmv1beta1.CommonAppsParams `json:",inline"`
+	vmv1beta1.StandardAppsParams `json:",inline"`
 }
 
 // GetMetricsPath returns prefixed path for metric requests
@@ -387,7 +392,7 @@ func (cr *VTSelect) GetMetricsPath() string {
 
 // UseProxyProtocol implements build.probeCRD interface
 func (cr *VTSelect) UseProxyProtocol() bool {
-	return vmv1beta1.UseProxyProtocol(cr.ExtraArgs)
+	return cr.StandardAppsParams.UseProxyProtocol()
 }
 
 // ExtraArgs returns additionally configured command-line arguments
@@ -397,7 +402,7 @@ func (cr *VTSelect) GetExtraArgs() map[string]string {
 
 // UseTLS returns true if TLS is enabled
 func (cr *VTSelect) UseTLS() bool {
-	return vmv1beta1.UseTLS(cr.ExtraArgs)
+	return cr.Proto() == "https"
 }
 
 // ServiceScrape returns overrides for serviceScrape builder
@@ -412,11 +417,16 @@ func (cr *VTSelect) ProbePath() string {
 
 // ProbeScheme implements build.probeCRD interface
 func (cr *VTSelect) ProbeScheme() string {
-	return strings.ToUpper(vmv1beta1.HTTPProtoFromFlags(cr.ExtraArgs))
+	return strings.ToUpper(cr.StandardAppsParams.Proto())
 }
 
 // ProbePort implements build.probeCRD interface
 func (cr *VTSelect) ProbePort() string {
+	if l := cr.StandardAppsParams.Primary(); l != nil {
+		if port := l.AddrPort(); port != "" {
+			return port
+		}
+	}
 	return cr.Port
 }
 
@@ -518,7 +528,7 @@ type VTStorage struct {
 	// +optional
 	MaintenanceSelectNodeIDs []int32 `json:"maintenanceSelectNodeIDs,omitempty"`
 
-	vmv1beta1.CommonAppsParams `json:",inline"`
+	vmv1beta1.StandardAppsParams `json:",inline"`
 
 	// RollingUpdateStrategyBehavior defines customized behavior for rolling updates.
 	// It applies if the RollingUpdateStrategy is set to OnDelete, which is the default.
@@ -536,7 +546,7 @@ func (cr *VTStorage) GetStorageVolumeName() string {
 
 // UseProxyProtocol implements build.probeCRD interface
 func (cr *VTStorage) UseProxyProtocol() bool {
-	return vmv1beta1.UseProxyProtocol(cr.ExtraArgs)
+	return cr.StandardAppsParams.UseProxyProtocol()
 }
 
 // GetMetricsPath returns prefixed path for metric requests
@@ -554,7 +564,7 @@ func (cr *VTStorage) GetExtraArgs() map[string]string {
 
 // UseTLS returns true if TLS is enabled
 func (cr *VTStorage) UseTLS() bool {
-	return vmv1beta1.UseTLS(cr.ExtraArgs)
+	return cr.Proto() == "https"
 }
 
 // ServiceScrape returns overrides for serviceScrape builder
@@ -569,11 +579,16 @@ func (cr *VTStorage) ProbePath() string {
 
 // ProbeScheme implements build.probeCRD interface
 func (cr *VTStorage) ProbeScheme() string {
-	return strings.ToUpper(vmv1beta1.HTTPProtoFromFlags(cr.ExtraArgs))
+	return strings.ToUpper(cr.StandardAppsParams.Proto())
 }
 
 // ProbePort implements build.probeCRD interface
 func (cr *VTStorage) ProbePort() string {
+	if l := cr.StandardAppsParams.Primary(); l != nil {
+		if port := l.AddrPort(); port != "" {
+			return port
+		}
+	}
 	return cr.Port
 }
 
@@ -799,7 +814,7 @@ func (cr *VTCluster) IsOwnsServiceAccount() bool {
 func (cr *VTCluster) AsURL(kind vmv1beta1.ClusterComponent, isExtra bool) string {
 	var defaultPort string
 	var svcSpec *vmv1beta1.AdditionalServiceSpec
-	var extraArgs map[string]string
+	var sp *vmv1beta1.StandardAppsParams
 	switch kind {
 	case vmv1beta1.ClusterComponentSelect:
 		if cr.Spec.Select == nil {
@@ -810,7 +825,7 @@ func (cr *VTCluster) AsURL(kind vmv1beta1.ClusterComponent, isExtra bool) string
 			defaultPort = cr.Spec.Select.Port
 		}
 		svcSpec = cr.Spec.Select.ServiceSpec
-		extraArgs = cr.Spec.Select.ExtraArgs
+		sp = &cr.Spec.Select.StandardAppsParams
 	case vmv1beta1.ClusterComponentInsert:
 		if cr.Spec.Insert == nil {
 			return ""
@@ -820,7 +835,7 @@ func (cr *VTCluster) AsURL(kind vmv1beta1.ClusterComponent, isExtra bool) string
 			defaultPort = cr.Spec.Insert.Port
 		}
 		svcSpec = cr.Spec.Insert.ServiceSpec
-		extraArgs = cr.Spec.Insert.ExtraArgs
+		sp = &cr.Spec.Insert.StandardAppsParams
 	case vmv1beta1.ClusterComponentStorage:
 		if cr.Spec.Storage == nil {
 			return ""
@@ -830,12 +845,13 @@ func (cr *VTCluster) AsURL(kind vmv1beta1.ClusterComponent, isExtra bool) string
 			defaultPort = cr.Spec.Storage.Port
 		}
 		svcSpec = cr.Spec.Storage.ServiceSpec
-		extraArgs = cr.Spec.Storage.ExtraArgs
+		sp = &cr.Spec.Storage.StandardAppsParams
 	default:
 		panic("BUG unsupported cluster kind=" + string(kind))
 	}
+	defaultPort = sp.PrimaryPort(defaultPort)
 	svcName, port := vmv1beta1.ResolveServiceURL(cr.PrefixedName(kind), defaultPort, "http", svcSpec, isExtra)
-	return fmt.Sprintf("%s://%s.%s.svc:%s", vmv1beta1.HTTPProtoFromFlags(extraArgs), svcName, cr.Namespace, port)
+	return fmt.Sprintf("%s://%s.%s.svc:%s", sp.Proto(), svcName, cr.Namespace, port)
 }
 
 // +kubebuilder:object:root=true

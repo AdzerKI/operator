@@ -62,8 +62,10 @@ var _ = Describe("test vtagent Controller", Label("vt", "agent", "vtagent"), fun
 					Name:      nsn.Name,
 				},
 				Spec: vmv1.VTAgentSpec{
-					CommonAppsParams: vmv1beta1.CommonAppsParams{
-						ReplicaCount: ptr.To[int32](1),
+					StandardAppsParams: vmv1beta1.StandardAppsParams{
+						CommonAppsParams: vmv1beta1.CommonAppsParams{
+							ReplicaCount: ptr.To[int32](1),
+						},
 					},
 					RemoteWrite: []vmv1.VTAgentRemoteWriteSpec{
 						{URL: "http://localhost:10428/insert/native"},
@@ -100,8 +102,10 @@ var _ = Describe("test vtagent Controller", Label("vt", "agent", "vtagent"), fun
 						Name:      nsn.Name,
 					},
 					Spec: vmv1.VTAgentSpec{
-						CommonAppsParams: vmv1beta1.CommonAppsParams{
-							ReplicaCount: ptr.To[int32](1),
+						StandardAppsParams: vmv1beta1.StandardAppsParams{
+							CommonAppsParams: vmv1beta1.CommonAppsParams{
+								ReplicaCount: ptr.To[int32](1),
+							},
 						},
 						Storage: &vmv1beta1.StorageSpec{
 							VolumeClaimTemplate: vmv1beta1.EmbeddedPersistentVolumeClaim{
@@ -190,8 +194,10 @@ var _ = Describe("test vtagent Controller", Label("vt", "agent", "vtagent"), fun
 						Name:      nsn.Name,
 					},
 					Spec: vmv1.VTAgentSpec{
-						CommonAppsParams: vmv1beta1.CommonAppsParams{
-							ReplicaCount: ptr.To[int32](1),
+						StandardAppsParams: vmv1beta1.StandardAppsParams{
+							CommonAppsParams: vmv1beta1.CommonAppsParams{
+								ReplicaCount: ptr.To[int32](1),
+							},
 						},
 						RemoteWrite: []vmv1.VTAgentRemoteWriteSpec{
 							{

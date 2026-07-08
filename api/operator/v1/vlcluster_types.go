@@ -271,7 +271,7 @@ type VLInsert struct {
 	// +optional
 	RollingUpdate *appsv1.RollingUpdateDeployment `json:"rollingUpdate,omitempty"`
 
-	vmv1beta1.CommonAppsParams `json:",inline"`
+	vmv1beta1.StandardAppsParams `json:",inline"`
 }
 
 // ProbePath implements build.probeCRD interface
@@ -281,16 +281,21 @@ func (cr *VLInsert) ProbePath() string {
 
 // UseProxyProtocol implements build.probeCRD interface
 func (cr *VLInsert) UseProxyProtocol() bool {
-	return vmv1beta1.UseProxyProtocol(cr.ExtraArgs)
+	return cr.StandardAppsParams.UseProxyProtocol()
 }
 
 // ProbeScheme implements build.probeCRD interface
 func (cr *VLInsert) ProbeScheme() string {
-	return strings.ToUpper(vmv1beta1.HTTPProtoFromFlags(cr.ExtraArgs))
+	return strings.ToUpper(cr.StandardAppsParams.Proto())
 }
 
 // ProbePort implements build.probeCRD interface
 func (cr *VLInsert) ProbePort() string {
+	if l := cr.StandardAppsParams.Primary(); l != nil {
+		if port := l.AddrPort(); port != "" {
+			return port
+		}
+	}
 	return cr.Port
 }
 
@@ -314,7 +319,7 @@ func (cr *VLInsert) GetExtraArgs() map[string]string {
 
 // UseTLS returns true if TLS is enabled
 func (cr *VLInsert) UseTLS() bool {
-	return vmv1beta1.UseTLS(cr.ExtraArgs)
+	return cr.Proto() == "https"
 }
 
 // ServiceScrape returns overrides for serviceScrape builder
@@ -464,7 +469,7 @@ type VLSelect struct {
 	// ExtraStorageNodes - defines additional storage nodes to VLSelect
 	ExtraStorageNodes []VLStorageNode `json:"extraStorageNodes,omitempty"`
 
-	vmv1beta1.CommonAppsParams `json:",inline"`
+	vmv1beta1.StandardAppsParams `json:",inline"`
 }
 
 // GetMetricsPath returns prefixed path for metric requests
@@ -477,7 +482,7 @@ func (cr *VLSelect) GetMetricsPath() string {
 
 // UseProxyProtocol implements build.probeCRD interface
 func (cr *VLSelect) UseProxyProtocol() bool {
-	return vmv1beta1.UseProxyProtocol(cr.ExtraArgs)
+	return cr.StandardAppsParams.UseProxyProtocol()
 }
 
 // ExtraArgs returns additionally configured command-line arguments
@@ -487,7 +492,7 @@ func (cr *VLSelect) GetExtraArgs() map[string]string {
 
 // UseTLS returns true if TLS is enabled
 func (cr *VLSelect) UseTLS() bool {
-	return vmv1beta1.UseTLS(cr.ExtraArgs)
+	return cr.Proto() == "https"
 }
 
 // ServiceScrape returns overrides for serviceScrape builder
@@ -502,11 +507,16 @@ func (cr *VLSelect) ProbePath() string {
 
 // ProbeScheme implements build.probeCRD interface
 func (cr *VLSelect) ProbeScheme() string {
-	return strings.ToUpper(vmv1beta1.HTTPProtoFromFlags(cr.ExtraArgs))
+	return strings.ToUpper(cr.StandardAppsParams.Proto())
 }
 
 // ProbePort implements build.probeCRD interface
 func (cr *VLSelect) ProbePort() string {
+	if l := cr.StandardAppsParams.Primary(); l != nil {
+		if port := l.AddrPort(); port != "" {
+			return port
+		}
+	}
 	return cr.Port
 }
 
@@ -605,7 +615,7 @@ type VLStorage struct {
 	// +optional
 	MaintenanceSelectNodeIDs []int32 `json:"maintenanceSelectNodeIDs,omitempty"`
 
-	vmv1beta1.CommonAppsParams `json:",inline"`
+	vmv1beta1.StandardAppsParams `json:",inline"`
 
 	// RollingUpdateStrategyBehavior defines customized behavior for rolling updates.
 	// It applies if the RollingUpdateStrategy is set to OnDelete, which is the default.
@@ -623,7 +633,7 @@ func (cr *VLStorage) GetStorageVolumeName() string {
 
 // UseProxyProtocol implements build.probeCRD interface
 func (cr *VLStorage) UseProxyProtocol() bool {
-	return vmv1beta1.UseProxyProtocol(cr.ExtraArgs)
+	return cr.StandardAppsParams.UseProxyProtocol()
 }
 
 // GetMetricsPath returns prefixed path for metric requests
@@ -641,7 +651,7 @@ func (cr *VLStorage) GetExtraArgs() map[string]string {
 
 // UseTLS returns true if TLS is enabled
 func (cr *VLStorage) UseTLS() bool {
-	return vmv1beta1.UseTLS(cr.ExtraArgs)
+	return cr.Proto() == "https"
 }
 
 // ServiceScrape returns overrides for serviceScrape builder
@@ -656,11 +666,16 @@ func (cr *VLStorage) ProbePath() string {
 
 // ProbeScheme implements build.probeCRD interface
 func (cr *VLStorage) ProbeScheme() string {
-	return strings.ToUpper(vmv1beta1.HTTPProtoFromFlags(cr.ExtraArgs))
+	return strings.ToUpper(cr.StandardAppsParams.Proto())
 }
 
 // ProbePort implements build.probeCRD interface
 func (cr *VLStorage) ProbePort() string {
+	if l := cr.StandardAppsParams.Primary(); l != nil {
+		if port := l.AddrPort(); port != "" {
+			return port
+		}
+	}
 	return cr.Port
 }
 
@@ -878,7 +893,7 @@ func (cr *VLCluster) IsOwnsServiceAccount() bool {
 func (cr *VLCluster) AsURL(kind vmv1beta1.ClusterComponent, isExtra bool) string {
 	var defaultPort string
 	var svcSpec *vmv1beta1.AdditionalServiceSpec
-	var extraArgs map[string]string
+	var sp *vmv1beta1.StandardAppsParams
 	switch kind {
 	case vmv1beta1.ClusterComponentSelect:
 		if cr.Spec.VLSelect == nil {
@@ -889,7 +904,7 @@ func (cr *VLCluster) AsURL(kind vmv1beta1.ClusterComponent, isExtra bool) string
 			defaultPort = cr.Spec.VLSelect.Port
 		}
 		svcSpec = cr.Spec.VLSelect.ServiceSpec
-		extraArgs = cr.Spec.VLSelect.ExtraArgs
+		sp = &cr.Spec.VLSelect.StandardAppsParams
 	case vmv1beta1.ClusterComponentInsert:
 		if cr.Spec.VLInsert == nil {
 			return ""
@@ -899,7 +914,7 @@ func (cr *VLCluster) AsURL(kind vmv1beta1.ClusterComponent, isExtra bool) string
 			defaultPort = cr.Spec.VLInsert.Port
 		}
 		svcSpec = cr.Spec.VLInsert.ServiceSpec
-		extraArgs = cr.Spec.VLInsert.ExtraArgs
+		sp = &cr.Spec.VLInsert.StandardAppsParams
 	case vmv1beta1.ClusterComponentStorage:
 		if cr.Spec.VLStorage == nil {
 			return ""
@@ -909,12 +924,13 @@ func (cr *VLCluster) AsURL(kind vmv1beta1.ClusterComponent, isExtra bool) string
 			defaultPort = cr.Spec.VLStorage.Port
 		}
 		svcSpec = cr.Spec.VLStorage.ServiceSpec
-		extraArgs = cr.Spec.VLStorage.ExtraArgs
+		sp = &cr.Spec.VLStorage.StandardAppsParams
 	default:
 		panic("BUG unsupported cluster kind=" + string(kind))
 	}
+	defaultPort = sp.PrimaryPort(defaultPort)
 	svcName, port := vmv1beta1.ResolveServiceURL(cr.PrefixedName(kind), defaultPort, "http", svcSpec, isExtra)
-	return fmt.Sprintf("%s://%s.%s.svc:%s", vmv1beta1.HTTPProtoFromFlags(extraArgs), svcName, cr.Namespace, port)
+	return fmt.Sprintf("%s://%s.%s.svc:%s", sp.Proto(), svcName, cr.Namespace, port)
 }
 
 // GetRemoteWriteURL returns the insert URL for VLCluster (used by VLDistributed)

@@ -58,8 +58,10 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 			},
 				Entry("with 1 replica", "replica-1", &vmv1beta1.VMAuth{
 					Spec: vmv1beta1.VMAuthSpec{
-						CommonAppsParams: vmv1beta1.CommonAppsParams{
-							ReplicaCount: ptr.To[int32](1),
+						StandardAppsParams: vmv1beta1.StandardAppsParams{
+							CommonAppsParams: vmv1beta1.CommonAppsParams{
+								ReplicaCount: ptr.To[int32](1),
+							},
 						},
 						UnauthorizedUserAccessSpec: &vmv1beta1.VMAuthUnauthorizedUserAccessSpec{
 							TargetRefs: []vmv1beta1.TargetRef{
@@ -91,8 +93,10 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 				}),
 				Entry("with httproute", "httproute", &vmv1beta1.VMAuth{
 					Spec: vmv1beta1.VMAuthSpec{
-						CommonAppsParams: vmv1beta1.CommonAppsParams{
-							Port: "8427",
+						StandardAppsParams: vmv1beta1.StandardAppsParams{
+							CommonAppsParams: vmv1beta1.CommonAppsParams{
+								Port: "8427",
+							},
 						},
 						HTTPRoute: &vmv1beta1.EmbeddedHTTPRoute{
 							ParentRefs: []gwapiv1.ParentReference{
@@ -127,8 +131,10 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 				}),
 				Entry("with httproute extrarules", "httproute-extrarules", &vmv1beta1.VMAuth{
 					Spec: vmv1beta1.VMAuthSpec{
-						CommonAppsParams: vmv1beta1.CommonAppsParams{
-							Port: "8427",
+						StandardAppsParams: vmv1beta1.StandardAppsParams{
+							CommonAppsParams: vmv1beta1.CommonAppsParams{
+								Port: "8427",
+							},
 						},
 						HTTPRoute: &vmv1beta1.EmbeddedHTTPRoute{
 							ParentRefs: []gwapiv1.ParentReference{
@@ -199,11 +205,13 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 				}),
 				Entry("with strict security", "strict-security", &vmv1beta1.VMAuth{
 					Spec: vmv1beta1.VMAuthSpec{
-						CommonAppsParams: vmv1beta1.CommonAppsParams{
-							UseStrictSecurity:                   ptr.To(true),
-							UseDefaultResources:                 ptr.To(false),
-							ReplicaCount:                        ptr.To[int32](1),
-							DisableAutomountServiceAccountToken: true,
+						StandardAppsParams: vmv1beta1.StandardAppsParams{
+							CommonAppsParams: vmv1beta1.CommonAppsParams{
+								UseStrictSecurity:                   ptr.To(true),
+								UseDefaultResources:                 ptr.To(false),
+								ReplicaCount:                        ptr.To[int32](1),
+								DisableAutomountServiceAccountToken: true,
+							},
 						},
 						UnauthorizedUserAccessSpec: &vmv1beta1.VMAuthUnauthorizedUserAccessSpec{
 							TargetRefs: []vmv1beta1.TargetRef{
@@ -288,8 +296,10 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 				Entry("by changing replicas to 2", "update-replicas-2",
 					&vmv1beta1.VMAuth{
 						Spec: vmv1beta1.VMAuthSpec{
-							CommonAppsParams: vmv1beta1.CommonAppsParams{
-								ReplicaCount: ptr.To[int32](1),
+							StandardAppsParams: vmv1beta1.StandardAppsParams{
+								CommonAppsParams: vmv1beta1.CommonAppsParams{
+									ReplicaCount: ptr.To[int32](1),
+								},
 							},
 							UnauthorizedUserAccessSpec: &vmv1beta1.VMAuthUnauthorizedUserAccessSpec{
 								TargetRefs: []vmv1beta1.TargetRef{
@@ -323,8 +333,10 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 					&vmv1beta1.VMAuth{
 						Spec: vmv1beta1.VMAuthSpec{
 							SelectAllByDefault: true,
-							CommonAppsParams: vmv1beta1.CommonAppsParams{
-								ReplicaCount: ptr.To[int32](1),
+							StandardAppsParams: vmv1beta1.StandardAppsParams{
+								CommonAppsParams: vmv1beta1.CommonAppsParams{
+									ReplicaCount: ptr.To[int32](1),
+								},
 							},
 							UnauthorizedUserAccessSpec: &vmv1beta1.VMAuthUnauthorizedUserAccessSpec{
 								TargetRefs: []vmv1beta1.TargetRef{
@@ -391,9 +403,11 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 					&vmv1beta1.VMAuth{
 						Spec: vmv1beta1.VMAuthSpec{
 							SelectAllByDefault: true,
-							CommonAppsParams: vmv1beta1.CommonAppsParams{
-								ReplicaCount:        ptr.To[int32](1),
-								UseDefaultResources: ptr.To(false),
+							StandardAppsParams: vmv1beta1.StandardAppsParams{
+								CommonAppsParams: vmv1beta1.CommonAppsParams{
+									ReplicaCount:        ptr.To[int32](1),
+									UseDefaultResources: ptr.To(false),
+								},
 							},
 							UnauthorizedUserAccessSpec: &vmv1beta1.VMAuthUnauthorizedUserAccessSpec{
 								TargetRefs: []vmv1beta1.TargetRef{
@@ -449,9 +463,11 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 					&vmv1beta1.VMAuth{
 						Spec: vmv1beta1.VMAuthSpec{
 							SelectAllByDefault: true,
-							CommonAppsParams: vmv1beta1.CommonAppsParams{
-								UseDefaultResources: ptr.To(false),
-								ReplicaCount:        ptr.To[int32](2),
+							StandardAppsParams: vmv1beta1.StandardAppsParams{
+								CommonAppsParams: vmv1beta1.CommonAppsParams{
+									UseDefaultResources: ptr.To(false),
+									ReplicaCount:        ptr.To[int32](2),
+								},
 							},
 							PodDisruptionBudget: &vmv1beta1.EmbeddedPodDisruptionBudgetSpec{
 								MaxUnavailable: &intstr.IntOrString{IntVal: 1},
@@ -539,8 +555,10 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 					&vmv1beta1.VMAuth{
 						Spec: vmv1beta1.VMAuthSpec{
 							SelectAllByDefault: true,
-							CommonAppsParams: vmv1beta1.CommonAppsParams{
-								ReplicaCount: ptr.To[int32](1),
+							StandardAppsParams: vmv1beta1.StandardAppsParams{
+								CommonAppsParams: vmv1beta1.CommonAppsParams{
+									ReplicaCount: ptr.To[int32](1),
+								},
 							},
 							UnauthorizedUserAccessSpec: &vmv1beta1.VMAuthUnauthorizedUserAccessSpec{
 								TargetRefs: []vmv1beta1.TargetRef{
@@ -626,8 +644,10 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 					&vmv1beta1.VMAuth{
 						Spec: vmv1beta1.VMAuthSpec{
 							SelectAllByDefault: true,
-							CommonAppsParams: vmv1beta1.CommonAppsParams{
-								ReplicaCount: ptr.To[int32](1),
+							StandardAppsParams: vmv1beta1.StandardAppsParams{
+								CommonAppsParams: vmv1beta1.CommonAppsParams{
+									ReplicaCount: ptr.To[int32](1),
+								},
 							},
 							UnauthorizedUserAccessSpec: &vmv1beta1.VMAuthUnauthorizedUserAccessSpec{
 								TargetRefs: []vmv1beta1.TargetRef{
@@ -698,8 +718,10 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 					&vmv1beta1.VMAuth{
 						Spec: vmv1beta1.VMAuthSpec{
 							SelectAllByDefault: true,
-							CommonAppsParams: vmv1beta1.CommonAppsParams{
-								ReplicaCount: ptr.To[int32](1),
+							StandardAppsParams: vmv1beta1.StandardAppsParams{
+								CommonAppsParams: vmv1beta1.CommonAppsParams{
+									ReplicaCount: ptr.To[int32](1),
+								},
 							},
 							UnauthorizedUserAccessSpec: &vmv1beta1.VMAuthUnauthorizedUserAccessSpec{
 								TargetRefs: []vmv1beta1.TargetRef{
@@ -734,8 +756,10 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 					Name:      nsn.Name,
 				},
 				Spec: vmv1beta1.VMAuthSpec{
-					CommonAppsParams: vmv1beta1.CommonAppsParams{
-						ReplicaCount: &initialReplicas,
+					StandardAppsParams: vmv1beta1.StandardAppsParams{
+						CommonAppsParams: vmv1beta1.CommonAppsParams{
+							ReplicaCount: &initialReplicas,
+						},
 					},
 				},
 			}
@@ -796,8 +820,10 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 						Name:      nsn.Name,
 					},
 					Spec: vmv1beta1.VMAuthSpec{
-						CommonAppsParams: vmv1beta1.CommonAppsParams{
-							ReplicaCount: ptr.To[int32](1),
+						StandardAppsParams: vmv1beta1.StandardAppsParams{
+							CommonAppsParams: vmv1beta1.CommonAppsParams{
+								ReplicaCount: ptr.To[int32](1),
+							},
 						},
 					},
 				}
@@ -814,8 +840,10 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 						Name:      nsn.Name,
 					},
 					Spec: vmv1beta1.VMAuthSpec{
-						CommonAppsParams: vmv1beta1.CommonAppsParams{
-							ReplicaCount: ptr.To[int32](1),
+						StandardAppsParams: vmv1beta1.StandardAppsParams{
+							CommonAppsParams: vmv1beta1.CommonAppsParams{
+								ReplicaCount: ptr.To[int32](1),
+							},
 						},
 					},
 				}
@@ -843,8 +871,10 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 						Name:      nsn.Name,
 					},
 					Spec: vmv1beta1.VMAuthSpec{
-						CommonAppsParams: vmv1beta1.CommonAppsParams{
-							ReplicaCount: ptr.To[int32](1),
+						StandardAppsParams: vmv1beta1.StandardAppsParams{
+							CommonAppsParams: vmv1beta1.CommonAppsParams{
+								ReplicaCount: ptr.To[int32](1),
+							},
 						},
 					},
 				}
@@ -872,9 +902,11 @@ var _ = Describe("test vmauth Controller", Label("vm", "auth"), func() {
 						Name:      nsn.Name,
 					},
 					Spec: vmv1beta1.VMAuthSpec{
-						CommonAppsParams: vmv1beta1.CommonAppsParams{
-							ReplicaCount: ptr.To[int32](1),
-							Paused:       true,
+						StandardAppsParams: vmv1beta1.StandardAppsParams{
+							CommonAppsParams: vmv1beta1.CommonAppsParams{
+								ReplicaCount: ptr.To[int32](1),
+								Paused:       true,
+							},
 						},
 					},
 				}

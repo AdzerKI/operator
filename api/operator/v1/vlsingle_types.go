@@ -41,7 +41,7 @@ type VLSingleSpec struct {
 	// created by operator for the given CustomResource
 	ManagedMetadata *vmv1beta1.ManagedObjectsMetadata `json:"managedMetadata,omitempty"`
 
-	vmv1beta1.CommonAppsParams `json:",inline,omitempty"`
+	vmv1beta1.StandardAppsParams `json:",inline,omitempty"`
 
 	// LogLevel for VictoriaLogs to be configured with.
 	// +optional
@@ -167,7 +167,7 @@ func (cr *VLSingle) GetStatus() *VLSingleStatus {
 
 // UseProxyProtocol implements build.probeCRD interface
 func (cr *VLSingle) UseProxyProtocol() bool {
-	return vmv1beta1.UseProxyProtocol(cr.Spec.ExtraArgs)
+	return cr.Spec.UseProxyProtocol()
 }
 
 // DefaultStatusFields implements reconcile.ObjectWithDeepCopyAndStatus interface
@@ -228,10 +228,15 @@ func (cr *VLSingle) ProbePath() string {
 }
 
 func (cr *VLSingle) ProbeScheme() string {
-	return strings.ToUpper(vmv1beta1.HTTPProtoFromFlags(cr.Spec.ExtraArgs))
+	return strings.ToUpper(cr.Spec.Proto())
 }
 
 func (cr *VLSingle) ProbePort() string {
+	if l := cr.Spec.Primary(); l != nil {
+		if port := l.AddrPort(); port != "" {
+			return port
+		}
+	}
 	return cr.Spec.Port
 }
 
@@ -296,13 +301,21 @@ func (cr *VLSingle) GetMetricsPath() string {
 
 // UseTLS returns true if TLS is enabled
 func (cr *VLSingle) UseTLS() bool {
-	return vmv1beta1.UseTLS(cr.Spec.ExtraArgs)
+	return cr.Spec.Proto() == "https"
+}
+
+// PrimaryPortName returns the Service port name generated for the primary listener.
+func (cr *VLSingle) PrimaryPortName() string {
+	return cr.Spec.PrimaryPortName()
 }
 
 // Validate checks if spec is correct
 func (cr *VLSingle) Validate() error {
 	if vmv1beta1.MustSkipCRValidation(cr) {
 		return nil
+	}
+	if err := cr.Spec.ValidateHTTPListeners(); err != nil {
+		return err
 	}
 	if cr.Spec.ServiceSpec != nil && cr.Spec.ServiceSpec.Name == cr.PrefixedName() {
 		return fmt.Errorf("spec.serviceSpec.Name cannot be equal to prefixed name=%q", cr.PrefixedName())
@@ -340,13 +353,14 @@ func (cr *VLSingle) IsOwnsServiceAccount() bool {
 	return cr.Spec.ServiceAccountName == ""
 }
 
-func (cr *VLSingle) AsURL(isExtra bool) string {
+func (cr *VLSingle) AsURL(nsn vmv1beta1.NamespacedName) string {
 	specPort := cr.Spec.Port
 	if specPort == "" {
 		specPort = "9428"
 	}
-	svcName, port := vmv1beta1.ResolveServiceURL(cr.PrefixedName(), specPort, "http", cr.Spec.ServiceSpec, isExtra)
-	return fmt.Sprintf("%s://%s.%s.svc:%s", vmv1beta1.HTTPProtoFromFlags(cr.Spec.ExtraArgs), svcName, cr.Namespace, port)
+	specPort = cr.Spec.PrimaryPort(specPort)
+	svcName, port := vmv1beta1.ResolveServiceURL(cr.PrefixedName(), specPort, "http", cr.Spec.ServiceSpec, nsn.UseExtraService)
+	return cr.Spec.BuildServiceURL(svcName, cr.Namespace, port, nsn.ListenerName)
 }
 
 // LastSpecUpdated compares spec with last applied spec stored, replaces old spec and returns true if it's updated
@@ -367,5 +381,5 @@ func (cr *VLSingle) GetAdditionalService() *vmv1beta1.AdditionalServiceSpec {
 
 // GetRemoteWriteURL returns the native insert URL for VLSingle (used by VLDistributed)
 func (cr *VLSingle) GetRemoteWriteURL() string {
-	return cr.AsURL(false) + "/insert/native"
+	return cr.AsURL(vmv1beta1.NamespacedName{}) + "/insert/native"
 }

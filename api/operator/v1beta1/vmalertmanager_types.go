@@ -231,7 +231,7 @@ type VMAlertmanagerSpec struct {
 	VPA *EmbeddedVPA `json:"vpa,omitempty"`
 
 	CommonConfigReloaderParams `json:",inline,omitempty"`
-	CommonAppsParams           `json:",inline,omitempty"`
+	CommonAppsParams           `json:",inline"`
 }
 
 // GetReloadURL implements reloadable interface
@@ -407,12 +407,12 @@ func (cr *VMAlertmanager) Port() string {
 
 // AsURL returns url for accessing alertmanager
 // via corresponding service
-func (cr *VMAlertmanager) AsURL(isExtra bool) string {
+func (cr *VMAlertmanager) AsURL(nsn NamespacedName) string {
 	portName := cr.Spec.PortName
 	if portName == "" {
 		portName = "web"
 	}
-	svcName, port := ResolveServiceURL(cr.PrefixedName(), cr.Port(), portName, cr.Spec.ServiceSpec, isExtra)
+	svcName, port := ResolveServiceURL(cr.PrefixedName(), cr.Port(), portName, cr.Spec.ServiceSpec, nsn.UseExtraService)
 	return fmt.Sprintf("%s://%s.%s.svc:%s", cr.accessScheme(), svcName, cr.Namespace, port)
 }
 

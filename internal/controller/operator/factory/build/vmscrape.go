@@ -23,6 +23,12 @@ type podScrapeBuilder interface {
 	AsOwner() metav1.OwnerReference
 }
 
+// primaryPortNamer is implemented by CRDs supporting multiple HTTPListeners,
+// returning the Service port name generated for the primary listener.
+type primaryPortNamer interface {
+	PrimaryPortName() string
+}
+
 // VMServiceScrape creates corresponding object with `http` port endpoint obtained from given service
 // add additionalPortNames to the monitoring if needed
 func VMServiceScrape(service *corev1.Service, b scrapeBuilder, additionalPortNames ...string) *vmv1beta1.VMServiceScrape {
@@ -31,7 +37,10 @@ func VMServiceScrape(service *corev1.Service, b scrapeBuilder, additionalPortNam
 	extraArgs := b.GetExtraArgs()
 	authKey := extraArgs["metricsAuthKey"]
 
-	const defaultPortName = "http"
+	defaultPortName := "http"
+	if pn, ok := b.(primaryPortNamer); ok {
+		defaultPortName = pn.PrimaryPortName()
+	}
 	for _, servicePort := range service.Spec.Ports {
 		// fast path - filter all unmatched ports
 		if servicePort.Name != defaultPortName && len(additionalPortNames) == 0 {

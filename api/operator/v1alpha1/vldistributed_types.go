@@ -261,7 +261,7 @@ type VLDistributedZoneAgentSpec struct {
 	// +optional
 	VPA *vmv1beta1.EmbeddedVPA `json:"vpa,omitempty"`
 
-	vmv1beta1.CommonAppsParams `json:",inline,omitempty"`
+	vmv1beta1.StandardAppsParams `json:",inline,omitempty"`
 }
 
 // ToVLAgentSpec converts VLDistributedZoneAgentSpec to vmv1.VLAgentSpec via JSON round-trip.

@@ -342,8 +342,10 @@ func createVMAuth(ctx context.Context, wg *sync.WaitGroup, k8sClient client.Clie
 				Name:      name,
 			},
 			Spec: vmv1beta1.VMAuthSpec{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To[int32](1),
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To[int32](1),
+					},
 				},
 				UserSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{

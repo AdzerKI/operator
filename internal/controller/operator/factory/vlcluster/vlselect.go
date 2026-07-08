@@ -13,7 +13,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	vpav1 "k8s.io/autoscaler/vertical-pod-autoscaler/pkg/apis/autoscaling.k8s.io/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -154,10 +153,10 @@ func createOrUpdateVLSelectService(ctx context.Context, rclient client.Client, c
 	if cr.Spec.RequestsLoadBalancer.Enabled && !cr.Spec.RequestsLoadBalancer.DisableSelectBalancing {
 		var prevPort string
 		if prevCR != nil && prevCR.Spec.VLSelect != nil {
-			prevPort = prevCR.Spec.VLSelect.Port
+			prevPort = prevCR.Spec.VLSelect.PrimaryPort(prevCR.Spec.VLSelect.Port)
 		}
 		kind := vmv1beta1.ClusterComponentSelect
-		if err := createOrUpdateLBProxyService(ctx, rclient, cr, prevCR, kind, cr.Spec.VLSelect.Port, prevPort); err != nil {
+		if err := createOrUpdateLBProxyService(ctx, rclient, cr, prevCR, kind, cr.Spec.VLSelect.PrimaryPort(cr.Spec.VLSelect.Port), prevPort); err != nil {
 			return fmt.Errorf("cannot create lb svc for select: %w", err)
 		}
 	}
@@ -174,6 +173,7 @@ func createOrUpdateVLSelectService(ctx context.Context, rclient client.Client, c
 func buildVLSelectService(cr *vmv1.VLCluster) *corev1.Service {
 	b := build.NewChildBuilder(cr, vmv1beta1.ClusterComponentSelect)
 	svc := build.Service(b, cr.Spec.VLSelect.Port, func(svc *corev1.Service) {
+		build.AddHTTPListenerPortsToService(svc, cr.Spec.VLSelect.HTTPListeners)
 		svc.Spec.ClusterIP = "None"
 		svc.Spec.PublishNotReadyAddresses = true
 	})
@@ -246,7 +246,6 @@ func buildVLSelectDeployment(cr *vmv1.VLCluster) (*appsv1.Deployment, error) {
 func buildVLSelectPodSpec(cr *vmv1.VLCluster) (*corev1.PodTemplateSpec, error) {
 	cfg := config.MustGetBaseConfig()
 	args := []string{
-		fmt.Sprintf("-httpListenAddr=:%s", cr.Spec.VLSelect.Port),
 		"-internalinsert.disable=true",
 	}
 	if cfg.EnableTCP6 {
@@ -262,7 +261,7 @@ func buildVLSelectPodSpec(cr *vmv1.VLCluster) (*corev1.PodTemplateSpec, error) {
 	storageNodeFlag := build.NewFlag("-storageNode", "")
 	storageNodeIds := cr.AvailableStorageNodeIDs(vmv1beta1.ClusterComponentSelect)
 	for idx, i := range storageNodeIds {
-		storageNodeFlag.Add(vmv1beta1.PodDNSAddress(cr.PrefixedName(vmv1beta1.ClusterComponentStorage), i, cr.Namespace, cr.Spec.VLStorage.Port, cr.Spec.ClusterDomainName), idx)
+		storageNodeFlag.Add(vmv1beta1.PodDNSAddress(cr.PrefixedName(vmv1beta1.ClusterComponentStorage), i, cr.Namespace, cr.Spec.VLStorage.PrimaryPort(cr.Spec.VLStorage.Port), cr.Spec.ClusterDomainName), idx)
 	}
 	if len(cr.Spec.VLSelect.ExtraStorageNodes) > 0 {
 		for i, node := range cr.Spec.VLSelect.ExtraStorageNodes {
@@ -282,18 +281,16 @@ func buildVLSelectPodSpec(cr *vmv1.VLCluster) (*corev1.PodTemplateSpec, error) {
 	var envs []corev1.EnvVar
 	envs = append(envs, cr.Spec.VLSelect.ExtraEnvs...)
 
-	var ports []corev1.ContainerPort
-	ports = append(ports, corev1.ContainerPort{
-		Name:          "http",
-		Protocol:      "TCP",
-		ContainerPort: intstr.Parse(cr.Spec.VLSelect.Port).IntVal,
-	})
-
 	volumes := make([]corev1.Volume, 0)
 	volumes = append(volumes, cr.Spec.VLSelect.Volumes...)
 
 	vmMounts := make([]corev1.VolumeMount, 0)
 	vmMounts = append(vmMounts, cr.Spec.VLSelect.VolumeMounts...)
+
+	var ports []corev1.ContainerPort
+	args = build.AddHTTPListenerArgsTo(args, cr.Spec.VLSelect.HTTPListeners, tlsServerConfigMountPath)
+	volumes, vmMounts = build.AddHTTPListenerTLSToVolumes(volumes, vmMounts, cr.Spec.VLSelect.HTTPListeners, tlsServerConfigMountPath)
+	ports = build.AddHTTPListenerPortsTo(ports, cr.Spec.VLSelect.HTTPListeners)
 
 	volumes, vmMounts = build.LicenseVolumeTo(volumes, vmMounts, cr.Spec.License, vmv1beta1.SecretsDir)
 	args = build.LicenseArgsTo(args, cr.Spec.License, vmv1beta1.SecretsDir)

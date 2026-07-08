@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -487,7 +486,7 @@ func (cr *VMAnomaly) ProbePath() string {
 
 // ProbeScheme implements build.probeCRD interface
 func (cr *VMAnomaly) ProbeScheme() string {
-	return strings.ToUpper(vmv1beta1.HTTPProtoFromFlags(cr.Spec.ExtraArgs))
+	return vmv1beta1.ProbeSchemeFromTLS(cr.Spec.ExtraArgs)
 }
 
 // ProbePort implements build.probeCRD interface
@@ -505,8 +504,8 @@ func (*VMAnomaly) ProbeNeedLiveness() bool {
 
 // AsURL returns url for http access to the first replica.
 // Returns empty string if spec.server.port is not configured.
-func (cr *VMAnomaly) AsURL(isExtra bool) string {
-	svcName, port := vmv1beta1.ResolveServiceURL(cr.PrefixedName(), cr.Port(), "http", nil, isExtra)
+func (cr *VMAnomaly) AsURL(nsn vmv1beta1.NamespacedName) string {
+	svcName, port := vmv1beta1.ResolveServiceURL(cr.PrefixedName(), cr.Port(), "http", nil, nsn.UseExtraService)
 	return fmt.Sprintf("http://%s.%s.svc:%s", svcName, cr.Namespace, port)
 }
 

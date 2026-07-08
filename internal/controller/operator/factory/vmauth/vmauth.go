@@ -33,13 +33,14 @@ import (
 )
 
 const (
-	vmAuthConfigMountGz   = "/opt/vmauth-config-gz"
-	vmAuthConfigFolder    = "/opt/vmauth"
-	vmAuthConfigRawFolder = "/opt/vmauth/config"
-	vmAuthConfigName      = "config.yaml"
-	vmAuthConfigNameGz    = "config.yaml.gz"
-	vmAuthVolumeName      = "config"
-	internalPortName      = "internal"
+	vmAuthConfigMountGz      = "/opt/vmauth-config-gz"
+	vmAuthConfigFolder       = "/opt/vmauth"
+	vmAuthConfigRawFolder    = "/opt/vmauth/config"
+	vmAuthConfigName         = "config.yaml"
+	vmAuthConfigNameGz       = "config.yaml.gz"
+	vmAuthVolumeName         = "config"
+	internalPortName         = "internal"
+	tlsServerConfigMountPath = "/etc/vm/tls-server-secrets"
 )
 
 // CreateOrUpdate - handles VMAuth deployment reconciliation.
@@ -207,9 +208,6 @@ func makeSpecForVMAuth(cr *vmv1beta1.VMAuth) (*corev1.PodTemplateSpec, error) {
 	args = append(args, fmt.Sprintf("-auth.config=%s", configPath))
 
 	cfg := config.MustGetBaseConfig()
-	if cr.Spec.UseProxyProtocol {
-		args = append(args, "-httpListenAddr.useProxyProtocol=true")
-	}
 	if cfg.EnableTCP6 {
 		args = append(args, "-enableTCP6")
 	}
@@ -220,7 +218,6 @@ func makeSpecForVMAuth(cr *vmv1beta1.VMAuth) (*corev1.PodTemplateSpec, error) {
 		args = append(args, fmt.Sprintf("-loggerFormat=%s", cr.Spec.LogFormat))
 	}
 
-	args = append(args, fmt.Sprintf("-httpListenAddr=:%s", cr.Spec.Port))
 	if len(cr.Spec.InternalListenPort) > 0 {
 		args = append(args, fmt.Sprintf("-httpInternalListenAddr=:%s", cr.Spec.InternalListenPort))
 	}
@@ -232,8 +229,6 @@ func makeSpecForVMAuth(cr *vmv1beta1.VMAuth) (*corev1.PodTemplateSpec, error) {
 	envs = append(envs, cr.Spec.ExtraEnvs...)
 
 	var ports []corev1.ContainerPort
-
-	ports = append(ports, corev1.ContainerPort{Name: "http", Protocol: "TCP", ContainerPort: intstr.Parse(cr.Spec.Port).IntVal})
 
 	if len(cr.Spec.InternalListenPort) > 0 {
 		ports = append(ports, corev1.ContainerPort{
@@ -345,6 +340,9 @@ func makeSpecForVMAuth(cr *vmv1beta1.VMAuth) (*corev1.PodTemplateSpec, error) {
 		return nil, fmt.Errorf("cannot apply patch for initContainers: %w", err)
 	}
 
+	args = build.AddHTTPListenerArgsTo(args, cr.Spec.HTTPListeners, tlsServerConfigMountPath)
+	volumes, volumeMounts = build.AddHTTPListenerTLSToVolumes(volumes, volumeMounts, cr.Spec.HTTPListeners, tlsServerConfigMountPath)
+	ports = build.AddHTTPListenerPortsTo(ports, cr.Spec.HTTPListeners)
 	args = build.AddExtraArgsOverrideDefaults(args, cr.Spec.ExtraArgs, "-")
 	sort.Strings(args)
 
@@ -577,6 +575,7 @@ func buildIngressConfig(cr *vmv1beta1.VMAuth) *networkingv1.Ingress {
 
 func setInternalSvcPort(cr *vmv1beta1.VMAuth) func(svc *corev1.Service) {
 	return func(svc *corev1.Service) {
+		build.AddHTTPListenerPortsToService(svc, cr.Spec.HTTPListeners)
 		if len(cr.Spec.InternalListenPort) > 0 {
 			p := intstr.Parse(cr.Spec.InternalListenPort)
 			svc.Spec.Ports = append(svc.Spec.Ports, corev1.ServicePort{

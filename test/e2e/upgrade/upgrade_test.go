@@ -62,14 +62,15 @@ var (
 			CommonConfigReloaderParams: vmv1beta1.CommonConfigReloaderParams{
 				ConfigReloaderImage: configReloaderImage(),
 			},
-			CommonAppsParams: vmv1beta1.CommonAppsParams{
-				ReplicaCount: ptr.To[int32](1),
-				Image: vmv1beta1.Image{
-					Repository: "quay.io/victoriametrics/vmagent",
-					Tag:        "v1.136.0",
-				},
-				TerminationGracePeriodSeconds: ptr.To(int64(1)),
-			},
+			StandardAppsParams: vmv1beta1.StandardAppsParams{
+				CommonAppsParams: vmv1beta1.CommonAppsParams{
+					ReplicaCount: ptr.To[int32](1),
+					Image: vmv1beta1.Image{
+						Repository: "quay.io/victoriametrics/vmagent",
+						Tag:        "v1.136.0",
+					},
+					TerminationGracePeriodSeconds: ptr.To(int64(1)),
+				}},
 		},
 	}
 	vlagent = &vmv1.VLAgent{
@@ -79,24 +80,25 @@ var (
 					URL: "http://127.0.0.1:9428/insert/loki/api/v1/push",
 				},
 			},
-			CommonAppsParams: vmv1beta1.CommonAppsParams{
-				ReplicaCount: ptr.To[int32](1),
-				Image: vmv1beta1.Image{
-					Repository: "quay.io/victoriametrics/vlagent",
-					Tag:        "v1.48.0",
-				},
-				Resources: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("20m"),
-						corev1.ResourceMemory: resource.MustParse("128Mi"),
+			StandardAppsParams: vmv1beta1.StandardAppsParams{
+				CommonAppsParams: vmv1beta1.CommonAppsParams{
+					ReplicaCount: ptr.To[int32](1),
+					Image: vmv1beta1.Image{
+						Repository: "quay.io/victoriametrics/vlagent",
+						Tag:        "v1.48.0",
 					},
-					Limits: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("20m"),
-						corev1.ResourceMemory: resource.MustParse("128Mi"),
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("20m"),
+							corev1.ResourceMemory: resource.MustParse("128Mi"),
+						},
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("20m"),
+							corev1.ResourceMemory: resource.MustParse("128Mi"),
+						},
 					},
-				},
-				TerminationGracePeriodSeconds: ptr.To(int64(1)),
-			},
+					TerminationGracePeriodSeconds: ptr.To(int64(1)),
+				}},
 		},
 	}
 	vlagentK8sCollector = withVersion(vlagent, func(cr *vmv1.VLAgent, version string) {
@@ -120,14 +122,15 @@ var (
 			CommonConfigReloaderParams: vmv1beta1.CommonConfigReloaderParams{
 				ConfigReloaderImage: configReloaderImage(),
 			},
-			CommonAppsParams: vmv1beta1.CommonAppsParams{
-				ReplicaCount: ptr.To[int32](1),
-				Image: vmv1beta1.Image{
-					Repository: "quay.io/victoriametrics/vmauth",
-					Tag:        "v1.136.0",
-				},
-				TerminationGracePeriodSeconds: ptr.To(int64(1)),
-			},
+			StandardAppsParams: vmv1beta1.StandardAppsParams{
+				CommonAppsParams: vmv1beta1.CommonAppsParams{
+					ReplicaCount: ptr.To[int32](1),
+					Image: vmv1beta1.Image{
+						Repository: "quay.io/victoriametrics/vmauth",
+						Tag:        "v1.136.0",
+					},
+					TerminationGracePeriodSeconds: ptr.To(int64(1)),
+				}},
 			UnauthorizedAccessConfig: []vmv1beta1.UnauthorizedAccessConfigURLMap{
 				{
 					SrcPaths:  []string{"/api/v1/query"},
@@ -152,47 +155,51 @@ var (
 				},
 			},
 			Select: &vmv1.VTSelect{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To[int32](1),
-					Image: vmv1beta1.Image{
-						Repository: "quay.io/victoriametrics/victoria-traces",
-						Tag:        "v0.4.0",
-					},
-					TerminationGracePeriodSeconds: ptr.To(int64(1)),
-				},
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To[int32](1),
+						Image: vmv1beta1.Image{
+							Repository: "quay.io/victoriametrics/victoria-traces",
+							Tag:        "v0.4.0",
+						},
+						TerminationGracePeriodSeconds: ptr.To(int64(1)),
+					}},
 			},
 			Insert: &vmv1.VTInsert{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To[int32](1),
-					Image: vmv1beta1.Image{
-						Repository: "quay.io/victoriametrics/victoria-traces",
-						Tag:        "v0.4.0",
-					},
-					TerminationGracePeriodSeconds: ptr.To(int64(1)),
-				},
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To[int32](1),
+						Image: vmv1beta1.Image{
+							Repository: "quay.io/victoriametrics/victoria-traces",
+							Tag:        "v0.4.0",
+						},
+						TerminationGracePeriodSeconds: ptr.To(int64(1)),
+					}},
 			},
 			Storage: &vmv1.VTStorage{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To[int32](1),
-					Image: vmv1beta1.Image{
-						Repository: "quay.io/victoriametrics/victoria-traces",
-						Tag:        "v0.4.0",
-					},
-					TerminationGracePeriodSeconds: ptr.To(int64(1)),
-				},
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To[int32](1),
+						Image: vmv1beta1.Image{
+							Repository: "quay.io/victoriametrics/victoria-traces",
+							Tag:        "v0.4.0",
+						},
+						TerminationGracePeriodSeconds: ptr.To(int64(1)),
+					}},
 			},
 		},
 	}
 	vtsingle = &vmv1.VTSingle{
 		Spec: vmv1.VTSingleSpec{
-			CommonAppsParams: vmv1beta1.CommonAppsParams{
-				ReplicaCount: ptr.To[int32](1),
-				Image: vmv1beta1.Image{
-					Repository: "quay.io/victoriametrics/victoria-traces",
-					Tag:        "v0.4.0",
-				},
-				TerminationGracePeriodSeconds: ptr.To(int64(1)),
-			},
+			StandardAppsParams: vmv1beta1.StandardAppsParams{
+				CommonAppsParams: vmv1beta1.CommonAppsParams{
+					ReplicaCount: ptr.To[int32](1),
+					Image: vmv1beta1.Image{
+						Repository: "quay.io/victoriametrics/victoria-traces",
+						Tag:        "v0.4.0",
+					},
+					TerminationGracePeriodSeconds: ptr.To(int64(1)),
+				}},
 		},
 	}
 	vmsingle = &vmv1beta1.VMSingle{
@@ -200,14 +207,15 @@ var (
 			CommonConfigReloaderParams: vmv1beta1.CommonConfigReloaderParams{
 				ConfigReloaderImage: configReloaderImage(),
 			},
-			CommonAppsParams: vmv1beta1.CommonAppsParams{
-				ReplicaCount: ptr.To[int32](1),
-				Image: vmv1beta1.Image{
-					Repository: "quay.io/victoriametrics/victoria-metrics",
-					Tag:        "v1.136.0",
-				},
-				TerminationGracePeriodSeconds: ptr.To(int64(1)),
-			},
+			StandardAppsParams: vmv1beta1.StandardAppsParams{
+				CommonAppsParams: vmv1beta1.CommonAppsParams{
+					ReplicaCount: ptr.To[int32](1),
+					Image: vmv1beta1.Image{
+						Repository: "quay.io/victoriametrics/victoria-metrics",
+						Tag:        "v1.136.0",
+					},
+					TerminationGracePeriodSeconds: ptr.To(int64(1)),
+				}},
 		},
 	}
 	_ = &vmv1beta1.VMAlert{
@@ -215,14 +223,15 @@ var (
 			CommonConfigReloaderParams: vmv1beta1.CommonConfigReloaderParams{
 				ConfigReloaderImage: configReloaderImage(),
 			},
-			CommonAppsParams: vmv1beta1.CommonAppsParams{
-				ReplicaCount: ptr.To[int32](1),
-				Image: vmv1beta1.Image{
-					Repository: "quay.io/victoriametrics/vmalert",
-					Tag:        "v1.136.0",
-				},
-				TerminationGracePeriodSeconds: ptr.To(int64(1)),
-			},
+			StandardAppsParams: vmv1beta1.StandardAppsParams{
+				CommonAppsParams: vmv1beta1.CommonAppsParams{
+					ReplicaCount: ptr.To[int32](1),
+					Image: vmv1beta1.Image{
+						Repository: "quay.io/victoriametrics/vmalert",
+						Tag:        "v1.136.0",
+					},
+					TerminationGracePeriodSeconds: ptr.To(int64(1)),
+				}},
 			Datasource: vmv1beta1.VMAlertDatasourceSpec{
 				URL: "http://localhost:8428",
 			},
@@ -248,34 +257,37 @@ var (
 				},
 			},
 			VLSelect: &vmv1.VLSelect{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To[int32](1),
-					Image: vmv1beta1.Image{
-						Repository: "quay.io/victoriametrics/victoria-logs",
-						Tag:        "v1.44.0",
-					},
-					TerminationGracePeriodSeconds: ptr.To(int64(1)),
-				},
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To[int32](1),
+						Image: vmv1beta1.Image{
+							Repository: "quay.io/victoriametrics/victoria-logs",
+							Tag:        "v1.44.0",
+						},
+						TerminationGracePeriodSeconds: ptr.To(int64(1)),
+					}},
 			},
 			VLInsert: &vmv1.VLInsert{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To[int32](1),
-					Image: vmv1beta1.Image{
-						Repository: "quay.io/victoriametrics/victoria-logs",
-						Tag:        "v1.44.0",
-					},
-					TerminationGracePeriodSeconds: ptr.To(int64(1)),
-				},
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To[int32](1),
+						Image: vmv1beta1.Image{
+							Repository: "quay.io/victoriametrics/victoria-logs",
+							Tag:        "v1.44.0",
+						},
+						TerminationGracePeriodSeconds: ptr.To(int64(1)),
+					}},
 			},
 			VLStorage: &vmv1.VLStorage{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To[int32](1),
-					Image: vmv1beta1.Image{
-						Repository: "quay.io/victoriametrics/victoria-logs",
-						Tag:        "v1.44.0",
-					},
-					TerminationGracePeriodSeconds: ptr.To(int64(1)),
-				},
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To[int32](1),
+						Image: vmv1beta1.Image{
+							Repository: "quay.io/victoriametrics/victoria-logs",
+							Tag:        "v1.44.0",
+						},
+						TerminationGracePeriodSeconds: ptr.To(int64(1)),
+					}},
 			},
 		},
 	}
@@ -295,34 +307,37 @@ var (
 				},
 			},
 			VMSelect: &vmv1beta1.VMSelect{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To[int32](1),
-					Image: vmv1beta1.Image{
-						Repository: "quay.io/victoriametrics/vmselect",
-						Tag:        "v1.136.0-cluster",
-					},
-					TerminationGracePeriodSeconds: ptr.To(int64(1)),
-				},
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To[int32](1),
+						Image: vmv1beta1.Image{
+							Repository: "quay.io/victoriametrics/vmselect",
+							Tag:        "v1.136.0-cluster",
+						},
+						TerminationGracePeriodSeconds: ptr.To(int64(1)),
+					}},
 			},
 			VMInsert: &vmv1beta1.VMInsert{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To[int32](1),
-					Image: vmv1beta1.Image{
-						Repository: "quay.io/victoriametrics/vminsert",
-						Tag:        "v1.136.0-cluster",
-					},
-					TerminationGracePeriodSeconds: ptr.To(int64(1)),
-				},
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To[int32](1),
+						Image: vmv1beta1.Image{
+							Repository: "quay.io/victoriametrics/vminsert",
+							Tag:        "v1.136.0-cluster",
+						},
+						TerminationGracePeriodSeconds: ptr.To(int64(1)),
+					}},
 			},
 			VMStorage: &vmv1beta1.VMStorage{
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To[int32](1),
-					Image: vmv1beta1.Image{
-						Repository: "quay.io/victoriametrics/vmstorage",
-						Tag:        "v1.136.0-cluster",
-					},
-					TerminationGracePeriodSeconds: ptr.To(int64(1)),
-				},
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To[int32](1),
+						Image: vmv1beta1.Image{
+							Repository: "quay.io/victoriametrics/vmstorage",
+							Tag:        "v1.136.0-cluster",
+						},
+						TerminationGracePeriodSeconds: ptr.To(int64(1)),
+					}},
 			},
 		},
 	}
@@ -343,28 +358,30 @@ var (
 	}
 	vlsingle = &vmv1.VLSingle{
 		Spec: vmv1.VLSingleSpec{
-			CommonAppsParams: vmv1beta1.CommonAppsParams{
-				ReplicaCount: ptr.To[int32](1),
-				Image: vmv1beta1.Image{
-					Repository: "quay.io/victoriametrics/victoria-logs",
-					Tag:        "v1.44.0",
-				},
-				TerminationGracePeriodSeconds: ptr.To(int64(1)),
-			},
+			StandardAppsParams: vmv1beta1.StandardAppsParams{
+				CommonAppsParams: vmv1beta1.CommonAppsParams{
+					ReplicaCount: ptr.To[int32](1),
+					Image: vmv1beta1.Image{
+						Repository: "quay.io/victoriametrics/victoria-logs",
+						Tag:        "v1.44.0",
+					},
+					TerminationGracePeriodSeconds: ptr.To(int64(1)),
+				}},
 		},
 	}
 	vmdistributed = &vmv1alpha1.VMDistributed{
 		Spec: vmv1alpha1.VMDistributedSpec{
 			VMAuth: vmv1alpha1.VMDistributedAuth{
 				Spec: vmv1beta1.VMAuthSpec{
-					CommonAppsParams: vmv1beta1.CommonAppsParams{
-						ReplicaCount: ptr.To[int32](1),
-						Image: vmv1beta1.Image{
-							Repository: "quay.io/victoriametrics/vmauth",
-							Tag:        "v1.136.0",
-						},
-						TerminationGracePeriodSeconds: ptr.To(int64(1)),
-					},
+					StandardAppsParams: vmv1beta1.StandardAppsParams{
+						CommonAppsParams: vmv1beta1.CommonAppsParams{
+							ReplicaCount: ptr.To[int32](1),
+							Image: vmv1beta1.Image{
+								Repository: "quay.io/victoriametrics/vmauth",
+								Tag:        "v1.136.0",
+							},
+							TerminationGracePeriodSeconds: ptr.To(int64(1)),
+						}},
 				},
 			},
 			ZoneCommon: vmv1alpha1.VMDistributedZoneCommon{
@@ -374,46 +391,51 @@ var (
 					Spec: vmv1beta1.VMClusterSpec{
 						RetentionPeriod: "1",
 						VMSelect: &vmv1beta1.VMSelect{
-							CommonAppsParams: vmv1beta1.CommonAppsParams{
-								ReplicaCount: ptr.To[int32](1),
-								Image: vmv1beta1.Image{
-									Repository: "quay.io/victoriametrics/vmselect",
-									Tag:        "v1.136.0-cluster",
-								},
-								TerminationGracePeriodSeconds: ptr.To(int64(1)),
-							},
+							StandardAppsParams: vmv1beta1.StandardAppsParams{
+								CommonAppsParams: vmv1beta1.CommonAppsParams{
+									ReplicaCount: ptr.To[int32](1),
+									Image: vmv1beta1.Image{
+										Repository: "quay.io/victoriametrics/vmselect",
+										Tag:        "v1.136.0-cluster",
+									},
+									TerminationGracePeriodSeconds: ptr.To(int64(1)),
+								}},
 						},
 						VMInsert: &vmv1beta1.VMInsert{
-							CommonAppsParams: vmv1beta1.CommonAppsParams{
-								ReplicaCount: ptr.To[int32](1),
-								Image: vmv1beta1.Image{
-									Repository: "quay.io/victoriametrics/vminsert",
-									Tag:        "v1.136.0-cluster",
-								},
-								TerminationGracePeriodSeconds: ptr.To(int64(1)),
-							},
+							StandardAppsParams: vmv1beta1.StandardAppsParams{
+								CommonAppsParams: vmv1beta1.CommonAppsParams{
+									ReplicaCount: ptr.To[int32](1),
+									Image: vmv1beta1.Image{
+										Repository: "quay.io/victoriametrics/vminsert",
+										Tag:        "v1.136.0-cluster",
+									},
+									TerminationGracePeriodSeconds: ptr.To(int64(1)),
+								}},
 						},
 						VMStorage: &vmv1beta1.VMStorage{
-							CommonAppsParams: vmv1beta1.CommonAppsParams{
-								ReplicaCount: ptr.To[int32](1),
-								Image: vmv1beta1.Image{
-									Repository: "quay.io/victoriametrics/vmstorage",
-									Tag:        "v1.136.0-cluster",
-								},
-								TerminationGracePeriodSeconds: ptr.To(int64(1)),
-							},
+							StandardAppsParams: vmv1beta1.StandardAppsParams{
+								CommonAppsParams: vmv1beta1.CommonAppsParams{
+									ReplicaCount: ptr.To[int32](1),
+									Image: vmv1beta1.Image{
+										Repository: "quay.io/victoriametrics/vmstorage",
+										Tag:        "v1.136.0-cluster",
+									},
+									TerminationGracePeriodSeconds: ptr.To(int64(1)),
+								}},
 						},
 					},
 				},
 				VMAgent: vmv1alpha1.VMDistributedZoneAgent{
 					Spec: vmv1alpha1.VMDistributedZoneAgentSpec{
-						CommonAppsParams: vmv1beta1.CommonAppsParams{
-							ReplicaCount: ptr.To[int32](1),
-							Image: vmv1beta1.Image{
-								Repository: "quay.io/victoriametrics/vmagent",
-								Tag:        "v1.136.0",
+						StandardAppsParams: vmv1beta1.StandardAppsParams{
+							CommonAppsParams: vmv1beta1.CommonAppsParams{
+								ReplicaCount: ptr.To[int32](1),
+								Image: vmv1beta1.Image{
+									Repository: "quay.io/victoriametrics/vmagent",
+									Tag:        "v1.136.0",
+								},
+								TerminationGracePeriodSeconds: ptr.To(int64(1)),
 							},
-							TerminationGracePeriodSeconds: ptr.To(int64(1)),
 						},
 					},
 				},

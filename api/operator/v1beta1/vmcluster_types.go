@@ -412,9 +412,8 @@ type VMSelect struct {
 	// to the cluster in a read-only mode.
 	// +optional
 	// +notes={available_from: "v0.74.0"}
-	ExtraStorageNodes []VMStorageNode `json:"extraStorageNodes,omitempty"`
-
-	CommonAppsParams `json:",inline"`
+	ExtraStorageNodes  []VMStorageNode `json:"extraStorageNodes,omitempty"`
+	StandardAppsParams `json:",inline"`
 }
 
 // VMStorageNode defines an additional, non-operator-managed vmstorage node
@@ -497,7 +496,7 @@ type VMInsert struct {
 	// +optional
 	Discovery *VMClusterDiscovery `json:"discovery,omitempty"`
 
-	CommonAppsParams `json:",inline"`
+	StandardAppsParams `json:",inline"`
 }
 
 func (cr *VMInsert) ProbePath() string {
@@ -506,14 +505,19 @@ func (cr *VMInsert) ProbePath() string {
 
 // UseProxyProtocol implements build.probeCRD interface
 func (cr *VMInsert) UseProxyProtocol() bool {
-	return UseProxyProtocol(cr.ExtraArgs)
+	return cr.StandardAppsParams.UseProxyProtocol()
 }
 
 func (cr *VMInsert) ProbeScheme() string {
-	return strings.ToUpper(HTTPProtoFromFlags(cr.ExtraArgs))
+	return strings.ToUpper(cr.Proto())
 }
 
 func (cr *VMInsert) ProbePort() string {
+	if l := cr.Primary(); l != nil {
+		if port := l.AddrPort(); port != "" {
+			return port
+		}
+	}
 	return cr.Port
 }
 
@@ -608,7 +612,7 @@ type VMStorage struct {
 	// ClaimTemplates allows adding additional VolumeClaimTemplates for StatefulSet
 	ClaimTemplates []corev1.PersistentVolumeClaim `json:"claimTemplates,omitempty"`
 
-	CommonAppsParams `json:",inline"`
+	StandardAppsParams `json:",inline"`
 }
 
 type VMBackup struct {
@@ -739,7 +743,7 @@ func (cr *VMSelect) GetCacheMountVolumeName() string {
 
 // UseProxyProtocol implements build.probeCRD interface
 func (cr *VMSelect) UseProxyProtocol() bool {
-	return UseProxyProtocol(cr.ExtraArgs)
+	return cr.StandardAppsParams.UseProxyProtocol()
 }
 
 // GetRemoteWriteURL returns remote write url for VMCluster
@@ -979,7 +983,7 @@ func (cr *VMSelect) GetMetricsPath() string {
 
 // UseTLS returns true if TLS is enabled
 func (cr *VMSelect) UseTLS() bool {
-	return UseTLS(cr.ExtraArgs)
+	return cr.Proto() == "https"
 }
 
 // ExtraArgs returns additionally configured command-line arguments
@@ -1007,7 +1011,7 @@ func (cr *VMInsert) GetExtraArgs() map[string]string {
 
 // UseTLS returns true if TLS is enabled
 func (cr *VMInsert) UseTLS() bool {
-	return UseTLS(cr.ExtraArgs)
+	return cr.Proto() == "https"
 }
 
 // ServiceScrape returns overrides for serviceScrape builder
@@ -1025,7 +1029,7 @@ func (cr *VMStorage) GetMetricsPath() string {
 
 // UseProxyProtocol implements build.probeCRD interface
 func (cr *VMStorage) UseProxyProtocol() bool {
-	return UseProxyProtocol(cr.ExtraArgs)
+	return cr.StandardAppsParams.UseProxyProtocol()
 }
 
 // ExtraArgs returns additionally configured command-line arguments
@@ -1035,22 +1039,12 @@ func (cr *VMStorage) GetExtraArgs() map[string]string {
 
 // UseTLS returns true if TLS is enabled
 func (cr *VMStorage) UseTLS() bool {
-	return UseTLS(cr.ExtraArgs)
+	return cr.Proto() == "https"
 }
 
 // ServiceScrape returns overrides for serviceScrape builder
 func (cr *VMStorage) GetServiceScrape() *VMServiceScrapeSpec {
 	return cr.ServiceScrapeSpec
-}
-
-// SnapshotCreatePathWithFlags returns url for accessing vmbackupmanager component
-func (*VMBackup) SnapshotCreatePathWithFlags(host, port string, extraArgs map[string]string) string {
-	return BuildLocalURL(snapshotAuthKeyFlag, host, port, snapshotCreate, extraArgs)
-}
-
-// SnapshotDeletePathWithFlags returns url for accessing vmbackupmanager component
-func (*VMBackup) SnapshotDeletePathWithFlags(host, port string, extraArgs map[string]string) string {
-	return BuildLocalURL(snapshotAuthKeyFlag, host, port, snapshotDelete, extraArgs)
 }
 
 // GetServiceAccountName returns service account name for all vmcluster components
@@ -1066,11 +1060,35 @@ func (cr *VMCluster) IsOwnsServiceAccount() bool {
 	return cr.Spec.ServiceAccountName == ""
 }
 
+// SnapshotCreatePath returns url for accessing vmbackupmanager's snapshot create endpoint
+func (cr *VMCluster) SnapshotCreatePath(host string) string {
+	if cr.Spec.VMStorage == nil {
+		return ""
+	}
+	return cr.Spec.VMStorage.BuildLocalURL(snapshotAuthKeyFlag, host, snapshotCreate)
+}
+
+// SnapshotDeletePath returns url for accessing vmbackupmanager's snapshot delete endpoint
+func (cr *VMCluster) SnapshotDeletePath(host string) string {
+	if cr.Spec.VMStorage == nil {
+		return ""
+	}
+	return cr.Spec.VMStorage.BuildLocalURL(snapshotAuthKeyFlag, host, snapshotDelete)
+}
+
+// Backup implements build.backupCRD interface
+func (cr *VMCluster) Backup() *VMBackup {
+	if cr.Spec.VMStorage == nil {
+		return nil
+	}
+	return cr.Spec.VMStorage.VMBackup
+}
+
 // AsURL implements stub for interface.
 func (cr *VMCluster) AsURL(kind ClusterComponent, isExtra bool) string {
 	var defaultPort string
 	var svcSpec *AdditionalServiceSpec
-	var extraArgs map[string]string
+	var sp *StandardAppsParams
 	switch kind {
 	case ClusterComponentSelect:
 		if cr.Spec.VMSelect == nil {
@@ -1081,7 +1099,7 @@ func (cr *VMCluster) AsURL(kind ClusterComponent, isExtra bool) string {
 			defaultPort = cr.Spec.VMSelect.Port
 		}
 		svcSpec = cr.Spec.VMSelect.ServiceSpec
-		extraArgs = cr.Spec.VMSelect.ExtraArgs
+		sp = &cr.Spec.VMSelect.StandardAppsParams
 	case ClusterComponentInsert:
 		if cr.Spec.VMInsert == nil {
 			return ""
@@ -1091,7 +1109,7 @@ func (cr *VMCluster) AsURL(kind ClusterComponent, isExtra bool) string {
 			defaultPort = cr.Spec.VMInsert.Port
 		}
 		svcSpec = cr.Spec.VMInsert.ServiceSpec
-		extraArgs = cr.Spec.VMInsert.ExtraArgs
+		sp = &cr.Spec.VMInsert.StandardAppsParams
 	case ClusterComponentStorage:
 		if cr.Spec.VMStorage == nil {
 			return ""
@@ -1101,12 +1119,13 @@ func (cr *VMCluster) AsURL(kind ClusterComponent, isExtra bool) string {
 			defaultPort = cr.Spec.VMStorage.Port
 		}
 		svcSpec = cr.Spec.VMStorage.ServiceSpec
-		extraArgs = cr.Spec.VMStorage.ExtraArgs
+		sp = &cr.Spec.VMStorage.StandardAppsParams
 	default:
 		panic("BUG unsupported cluster kind=" + string(kind))
 	}
+	defaultPort = sp.PrimaryPort(defaultPort)
 	svcName, port := ResolveServiceURL(cr.PrefixedName(kind), defaultPort, "http", svcSpec, isExtra)
-	return fmt.Sprintf("%s://%s.%s.svc:%s", HTTPProtoFromFlags(extraArgs), svcName, cr.Namespace, port)
+	return fmt.Sprintf("%s://%s.%s.svc:%s", sp.Proto(), svcName, cr.Namespace, port)
 }
 
 func (cr *VMSelect) ProbePath() string {
@@ -1114,10 +1133,15 @@ func (cr *VMSelect) ProbePath() string {
 }
 
 func (cr *VMSelect) ProbeScheme() string {
-	return strings.ToUpper(HTTPProtoFromFlags(cr.ExtraArgs))
+	return strings.ToUpper(cr.Proto())
 }
 
 func (cr *VMSelect) ProbePort() string {
+	if l := cr.Primary(); l != nil {
+		if port := l.AddrPort(); port != "" {
+			return port
+		}
+	}
 	return cr.Port
 }
 
@@ -1130,10 +1154,15 @@ func (cr *VMStorage) ProbePath() string {
 }
 
 func (cr *VMStorage) ProbeScheme() string {
-	return strings.ToUpper(HTTPProtoFromFlags(cr.ExtraArgs))
+	return strings.ToUpper(cr.Proto())
 }
 
 func (cr *VMStorage) ProbePort() string {
+	if l := cr.Primary(); l != nil {
+		if port := l.AddrPort(); port != "" {
+			return port
+		}
+	}
 	return cr.Port
 }
 
@@ -1222,12 +1251,12 @@ func (cr *VMAuthLoadBalancerSpec) ProbePath() string {
 
 // ProbeScheme returns scheme for probe requests
 func (cr *VMAuthLoadBalancerSpec) ProbeScheme() string {
-	return strings.ToUpper(HTTPProtoFromFlags(cr.ExtraArgs))
+	return ProbeSchemeFromTLS(cr.ExtraArgs)
 }
 
 // UseProxyProtocol implements build.probeCRD interface
 func (cr *VMAuthLoadBalancerSpec) UseProxyProtocol() bool {
-	return UseProxyProtocol(cr.ExtraArgs)
+	return getFirstValue(cr.ExtraArgs, httpUseProxyProtocolFlag) == "true"
 }
 
 // GetServiceScrape implements build.serviceScrapeBuilder interface

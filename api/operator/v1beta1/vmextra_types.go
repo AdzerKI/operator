@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/url"
 	"path"
 	"reflect"
@@ -22,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation"
 	vpav1 "k8s.io/autoscaler/vertical-pod-autoscaler/pkg/apis/autoscaling.k8s.io/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -195,11 +197,6 @@ func getFirstValue(args map[string]string, name string) string {
 		return strings.ToLower(strings.TrimSpace(v))
 	}
 	return ""
-}
-
-// UseProxyProtocol is a helper for build.probeCRD interface implementations
-func UseProxyProtocol(extraArgs map[string]string) bool {
-	return getFirstValue(extraArgs, httpUseProxyProtocolFlag) == "true"
 }
 
 // EmbeddedObjectMetadata contains a subset of the fields included in k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta
@@ -444,14 +441,21 @@ func ResolveServiceURL(prefixedName, defaultPort, portName string, svcSpec *Addi
 	return svcName, port
 }
 
-// BuildLocalURL builds API path for given args
-func BuildLocalURL(key, host, port, path string, extraArgs map[string]string) string {
-	localURL := &url.URL{
-		Scheme: HTTPProtoFromFlags(extraArgs),
-		Host:   fmt.Sprintf("%s:%s", host, port),
-		Path:   BuildPathWithPrefixFlag(extraArgs, path),
+// BuildLocalURL builds a local API URL using the params' scheme, port, and ExtraArgs.
+// The primary listener's port overrides Port when HTTPListeners are configured.
+func (p *StandardAppsParams) BuildLocalURL(key, host, path string) string {
+	port := p.Port
+	if l := p.Primary(); l != nil {
+		if lport := l.AddrPort(); lport != "" {
+			port = lport
+		}
 	}
-	if authKey, ok := extraArgs[key]; ok {
+	localURL := &url.URL{
+		Scheme: p.Proto(),
+		Host:   fmt.Sprintf("%s:%s", host, port),
+		Path:   BuildPathWithPrefixFlag(p.ExtraArgs, path),
+	}
+	if authKey, ok := p.ExtraArgs[key]; ok {
 		q := url.Values{}
 		q.Add("authKey", authKey)
 		localURL.RawQuery = q.Encode()
@@ -464,6 +468,19 @@ func UseTLS(extraArgs map[string]string) bool {
 	return getFirstValue(extraArgs, tlsFlag) == "true"
 }
 
+// Scheme returns "https" if TLS is enabled per extraArgs, "http" otherwise.
+func Scheme(extraArgs map[string]string) string {
+	if UseTLS(extraArgs) {
+		return "https"
+	}
+	return "http"
+}
+
+// ProbeSchemeFromTLS returns the upper-cased Scheme, as required by corev1.URIScheme.
+func ProbeSchemeFromTLS(extraArgs map[string]string) string {
+	return strings.ToUpper(Scheme(extraArgs))
+}
+
 // BuildPathWithPrefixFlag returns provided path with possible prefix from flags
 func BuildPathWithPrefixFlag(flags map[string]string, defaultPath string) string {
 	if prefix, ok := flags[httpPathPrefixFlag]; ok {
@@ -472,12 +489,65 @@ func BuildPathWithPrefixFlag(flags map[string]string, defaultPath string) string
 	return defaultPath
 }
 
-// HTTPProtoFromFlags returns HTTP protocol prefix from provided flags
-func HTTPProtoFromFlags(flags map[string]string) string {
-	if UseTLS(flags) {
+// AddrPort returns the port portion of the listener Addr (e.g. "8428" for ":8428").
+func (l *HTTPListener) AddrPort() string {
+	_, port, _ := net.SplitHostPort(l.Addr)
+	return port
+}
+
+// Proto returns "https" if TLS is explicitly enabled on this listener, "http" otherwise.
+// Unlike StandardAppsParams.Proto it does not fall back to ExtraArgs.
+func (l *HTTPListener) Proto() string {
+	if l.TLS != nil && *l.TLS {
 		return "https"
 	}
 	return "http"
+}
+
+// Validate checks the HTTPListener for well-formed configuration.
+func (l *HTTPListener) Validate() error {
+	if _, _, err := net.SplitHostPort(l.Addr); err != nil {
+		return fmt.Errorf("addr=%q must be a valid host:port address: %w", l.Addr, err)
+	}
+	if l.Name == "" {
+		return fmt.Errorf("name is required")
+	}
+	if errs := validation.IsValidPortName(l.Name); len(errs) > 0 {
+		return fmt.Errorf("name=%q is not a valid port name: %s", l.Name, strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+// Validate checks StandardAppsParams for semantic errors, including HTTPListeners.
+func (p *StandardAppsParams) Validate() error {
+	if err := p.CommonAppsParams.Validate(); err != nil {
+		return err
+	}
+	return p.ValidateHTTPListeners()
+}
+
+// ValidateHTTPListeners validates each configured HTTPListener, rejects duplicate names,
+// and rejects more than one listener marked Primary.
+func (p *StandardAppsParams) ValidateHTTPListeners() error {
+	seen := make(map[string]struct{}, len(p.HTTPListeners))
+	hasPrimary := false
+	for i := range p.HTTPListeners {
+		l := &p.HTTPListeners[i]
+		if err := l.Validate(); err != nil {
+			return fmt.Errorf("httpListeners[%d]: %w", i, err)
+		}
+		if _, ok := seen[l.Name]; ok {
+			return fmt.Errorf("httpListeners[%d]: duplicate name=%q", i, l.Name)
+		}
+		seen[l.Name] = struct{}{}
+		if l.Primary {
+			if hasPrimary {
+				return fmt.Errorf("httpListeners[%d]: found more than one listener marked primary, which is not allowed", i)
+			}
+			hasPrimary = true
+		}
+	}
+	return nil
 }
 
 type EmbeddedPodDisruptionBudgetSpec struct {
@@ -1662,6 +1732,152 @@ func (p *CommonAppsParams) Validate() error {
 		}
 	}
 	return nil
+}
+
+// StandardAppsParams extends CommonAppsParams for standard Go-binary applications
+// that expose one or more HTTP listeners via -httpListenAddr flags.
+type StandardAppsParams struct {
+	CommonAppsParams `json:",inline"`
+	// HTTPListeners configures HTTP listen addresses with optional per-listener
+	// TLS and proxy protocol settings. When set, takes precedence over Port for
+	// service port and argument generation.
+	// +optional
+	HTTPListeners []HTTPListener `json:"httpListeners,omitempty"`
+}
+
+// Proto returns "https" or "http" for the primary listener, falling back to ExtraArgs.
+func (p *StandardAppsParams) Proto() string {
+	if l := p.Primary(); l != nil && l.TLS != nil {
+		if *l.TLS {
+			return "https"
+		}
+		return "http"
+	}
+	if UseTLS(p.ExtraArgs) {
+		return "https"
+	}
+	return "http"
+}
+
+// UseProxyProtocol checks the primary listener first, then falls back to ExtraArgs.
+func (p *StandardAppsParams) UseProxyProtocol() bool {
+	if l := p.Primary(); l != nil && l.UseProxyProtocol != nil {
+		return *l.UseProxyProtocol
+	}
+	return getFirstValue(p.ExtraArgs, httpUseProxyProtocolFlag) == "true"
+}
+
+// Primary returns the listener marked Primary, the first listener, or nil when empty.
+func (p *StandardAppsParams) Primary() *HTTPListener {
+	for i := range p.HTTPListeners {
+		if p.HTTPListeners[i].Primary {
+			return &p.HTTPListeners[i]
+		}
+	}
+	if len(p.HTTPListeners) > 0 {
+		return &p.HTTPListeners[0]
+	}
+	return nil
+}
+
+// ByName returns the listener with the given name, or nil if not found.
+// Returns nil immediately when name is empty.
+func (p *StandardAppsParams) ByName(name string) *HTTPListener {
+	if name == "" {
+		return nil
+	}
+	for i := range p.HTTPListeners {
+		if p.HTTPListeners[i].Name == name {
+			return &p.HTTPListeners[i]
+		}
+	}
+	return nil
+}
+
+// BuildServiceURL builds a "scheme://svcName.namespace.svc:port" URL for a service.
+func (p *StandardAppsParams) BuildServiceURL(svcName, namespace, defaultPort, listenerName string) string {
+	scheme := p.Proto()
+	if l := p.ByName(listenerName); l != nil {
+		scheme = l.Proto()
+	}
+	return fmt.Sprintf("%s://%s.%s.svc:%s", scheme, svcName, namespace, defaultPort)
+}
+
+// PrimaryPort returns the primary listener's port, else legacyPort.
+func (p *StandardAppsParams) PrimaryPort(legacyPort string) string {
+	if l := p.Primary(); l != nil {
+		if port := l.AddrPort(); port != "" {
+			return port
+		}
+	}
+	return legacyPort
+}
+
+// PrimaryPortName returns the Service port name generated for the primary listener, defaulting to "http".
+func (p *StandardAppsParams) PrimaryPortName() string {
+	if l := p.Primary(); l != nil {
+		return l.Name
+	}
+	return "http"
+}
+
+// HTTPListener defines configuration for an HTTP listen address
+// +k8s:openapi-gen=true
+type HTTPListener struct {
+	// Name is the listener name, used for Kubernetes Service port naming.
+	Name string `json:"name"`
+	// Addr is the TCP address to listen for incoming HTTP requests, e.g. :8428
+	Addr string `json:"addr"`
+	// Primary marks this listener as the probe target when multiple listeners
+	// are configured. If no listener is marked primary, the first listener is used.
+	// +optional
+	Primary bool `json:"primary,omitempty"`
+	// TLS enables TLS for the listener
+	// +optional
+	TLS *bool `json:"tls,omitempty"`
+	// TLSCertFile path to the pre-mounted server TLS certificate file.
+	// Mutually exclusive with TLSCertSecret.
+	// +optional
+	TLSCertFile string `json:"tlsCertFile,omitempty"`
+	// TLSCertSecret reference to a Kubernetes Secret containing the server TLS certificate under the specified key.
+	// Mutually exclusive with TLSCertFile.
+	// +optional
+	TLSCertSecret *corev1.SecretKeySelector `json:"tlsCertSecret,omitempty"`
+	// TLSKeyFile path to the pre-mounted server TLS private key file.
+	// Mutually exclusive with TLSKeySecret.
+	// +optional
+	TLSKeyFile string `json:"tlsKeyFile,omitempty"`
+	// TLSKeySecret reference to a Kubernetes Secret containing the server TLS private key under the specified key.
+	// Mutually exclusive with TLSKeyFile.
+	// +optional
+	TLSKeySecret *corev1.SecretKeySelector `json:"tlsKeySecret,omitempty"`
+	// TLSMinVersion minimum supported TLS version
+	// +optional
+	TLSMinVersion string `json:"tlsMinVersion,omitempty"`
+	// TLSAutocertHosts enables automatic TLS certificate issuance for the listed hosts
+	// +optional
+	TLSAutocertHosts string `json:"tlsAutocertHosts,omitempty"`
+	// TLSAutocertEmail contact email for automatic TLS certificate issuance
+	// +optional
+	TLSAutocertEmail string `json:"tlsAutocertEmail,omitempty"`
+	// TLSAutocertCacheDir directory for caching automatically issued TLS certificates
+	// +optional
+	TLSAutocertCacheDir string `json:"tlsAutocertCacheDir,omitempty"`
+	// MTLS enables mutual TLS authentication
+	// +optional
+	MTLS *bool `json:"mtls,omitempty"`
+	// MTLSCAFile path to the pre-mounted CA certificate file for mTLS.
+	// Mutually exclusive with MTLSCASecret.
+	// +optional
+	MTLSCAFile string `json:"mtlsCAFile,omitempty"`
+	// MTLSCASecret reference to a Kubernetes Secret containing the CA certificate for mTLS under the specified key.
+	// Mutually exclusive with MTLSCAFile.
+	// +optional
+	MTLSCASecret *corev1.SecretKeySelector `json:"mtlsCASecret,omitempty"`
+	// UseProxyProtocol enables proxy protocol for connections accepted at this listener
+	// see https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+	// +optional
+	UseProxyProtocol *bool `json:"useProxyProtocol,omitempty"`
 }
 
 // SecurityContext extends PodSecurityContext with ContainerSecurityContext

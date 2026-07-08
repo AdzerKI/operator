@@ -122,13 +122,13 @@ func buildVMauthLBSecret(cr *vmv1.VTCluster) *corev1.Secret {
 	insertProto := "http"
 	selectProto := "http"
 	if cr.Spec.Select != nil {
-		selectPort = cr.Spec.Select.Port
+		selectPort = cr.Spec.Select.PrimaryPort(cr.Spec.Select.Port)
 		if cr.Spec.Select.UseTLS() {
 			selectProto = "https"
 		}
 	}
 	if cr.Spec.Insert != nil {
-		insertPort = cr.Spec.Insert.Port
+		insertPort = cr.Spec.Insert.PrimaryPort(cr.Spec.Insert.Port)
 		if cr.Spec.Insert.UseTLS() {
 			insertProto = "https"
 		}

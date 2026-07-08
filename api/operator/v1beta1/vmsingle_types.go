@@ -119,7 +119,7 @@ type VMSingleSpec struct {
 	CommonRelabelParams        `json:",inline,omitempty"`
 	CommonScrapeParams         `json:",inline,omitempty"`
 	CommonConfigReloaderParams `json:",inline,omitempty"`
-	CommonAppsParams           `json:",inline"`
+	StandardAppsParams         `json:",inline"`
 }
 
 // HasAnyStreamAggrRule checks if vmsingle has any defined aggregation rules
@@ -176,7 +176,7 @@ func (cr *VMSingle) ExternalLabels() map[string]string {
 
 // GetReloadURL implements reloadable interface
 func (cr *VMSingle) GetReloadURL(host string) string {
-	return BuildLocalURL(reloadAuthKeyFlag, host, cr.Spec.Port, reloadPath, cr.Spec.ExtraArgs)
+	return cr.Spec.BuildLocalURL(reloadAuthKeyFlag, host, reloadPath)
 }
 
 // GetReloaderParams implements reloadable interface
@@ -186,7 +186,22 @@ func (cr *VMSingle) GetReloaderParams() *CommonConfigReloaderParams {
 
 // UseProxyProtocol implements build.probeCRD interface
 func (cr *VMSingle) UseProxyProtocol() bool {
-	return UseProxyProtocol(cr.Spec.ExtraArgs)
+	return cr.Spec.UseProxyProtocol()
+}
+
+// SnapshotCreatePath returns url for accessing vmbackupmanager's snapshot create endpoint
+func (cr *VMSingle) SnapshotCreatePath(host string) string {
+	return cr.Spec.BuildLocalURL(snapshotAuthKeyFlag, host, snapshotCreate)
+}
+
+// SnapshotDeletePath returns url for accessing vmbackupmanager's snapshot delete endpoint
+func (cr *VMSingle) SnapshotDeletePath(host string) string {
+	return cr.Spec.BuildLocalURL(snapshotAuthKeyFlag, host, snapshotDelete)
+}
+
+// Backup implements build.backupCRD interface
+func (cr *VMSingle) Backup() *VMBackup {
+	return cr.Spec.VMBackup
 }
 
 // AutomountServiceAccountToken implements reloadable interface
@@ -258,10 +273,15 @@ func (cr *VMSingle) ProbePath() string {
 }
 
 func (cr *VMSingle) ProbeScheme() string {
-	return strings.ToUpper(HTTPProtoFromFlags(cr.Spec.ExtraArgs))
+	return strings.ToUpper(cr.Spec.Proto())
 }
 
 func (cr *VMSingle) ProbePort() string {
+	if l := cr.Spec.Primary(); l != nil {
+		if port := l.AddrPort(); port != "" {
+			return port
+		}
+	}
 	return cr.Spec.Port
 }
 
@@ -359,7 +379,12 @@ func (cr *VMSingle) GetExtraArgs() map[string]string {
 
 // UseTLS returns true if TLS is enabled
 func (cr *VMSingle) UseTLS() bool {
-	return UseTLS(cr.Spec.ExtraArgs)
+	return cr.Spec.Proto() == "https"
+}
+
+// PrimaryPortName returns the Service port name generated for the primary listener.
+func (cr *VMSingle) PrimaryPortName() string {
+	return cr.Spec.PrimaryPortName()
 }
 
 // ServiceScrape returns overrides for serviceScrape builder
@@ -384,16 +409,17 @@ func (cr *VMSingle) GetRBACName() string {
 }
 
 func (cr *VMSingle) GetRemoteWriteURL() string {
-	return cr.AsURL(false) + BuildPathWithPrefixFlag(cr.Spec.ExtraArgs, "/api/v1/write")
+	return cr.AsURL(NamespacedName{}) + BuildPathWithPrefixFlag(cr.Spec.ExtraArgs, "/api/v1/write")
 }
 
-func (cr *VMSingle) AsURL(isExtra bool) string {
+func (cr *VMSingle) AsURL(nsn NamespacedName) string {
 	specPort := cr.Spec.Port
 	if specPort == "" {
 		specPort = "8428"
 	}
-	svcName, port := ResolveServiceURL(cr.PrefixedName(), specPort, "http", cr.Spec.ServiceSpec, isExtra)
-	return fmt.Sprintf("%s://%s.%s.svc:%s", HTTPProtoFromFlags(cr.Spec.ExtraArgs), svcName, cr.Namespace, port)
+	specPort = cr.Spec.PrimaryPort(specPort)
+	svcName, port := ResolveServiceURL(cr.PrefixedName(), specPort, "http", cr.Spec.ServiceSpec, nsn.UseExtraService)
+	return cr.Spec.BuildServiceURL(svcName, cr.Namespace, port, nsn.ListenerName)
 }
 
 // LastSpecUpdated compares spec with last applied spec stored, replaces old spec and returns true if it's updated
@@ -410,6 +436,9 @@ func (cr *VMSingle) Paused() bool {
 func (cr *VMSingle) Validate() error {
 	if MustSkipCRValidation(cr) {
 		return nil
+	}
+	if err := cr.Spec.ValidateHTTPListeners(); err != nil {
+		return err
 	}
 	if cr.Spec.ServiceSpec != nil && cr.Spec.ServiceSpec.Name == cr.PrefixedName() {
 		return fmt.Errorf("spec.serviceSpec.Name cannot be equal to prefixed name=%q", cr.PrefixedName())

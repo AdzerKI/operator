@@ -166,12 +166,12 @@ type VMAlertSpec struct {
 	ComponentVersion string `json:"componentVersion,omitempty"`
 
 	CommonConfigReloaderParams `json:",inline,omitempty"`
-	CommonAppsParams           `json:",inline,omitempty"`
+	StandardAppsParams         `json:",inline"`
 }
 
 // GetReloadURL implements reloadable interface
 func (cr *VMAlert) GetReloadURL(host string) string {
-	return BuildLocalURL(reloadAuthKeyFlag, host, cr.Spec.Port, reloadPath, cr.Spec.ExtraArgs)
+	return cr.Spec.BuildLocalURL(reloadAuthKeyFlag, host, reloadPath)
 }
 
 // GetReloaderParams implements reloadable interface
@@ -181,7 +181,7 @@ func (cr *VMAlert) GetReloaderParams() *CommonConfigReloaderParams {
 
 // UseProxyProtocol implements build.probeCRD interface
 func (cr *VMAlert) UseProxyProtocol() bool {
-	return UseProxyProtocol(cr.Spec.ExtraArgs)
+	return cr.Spec.UseProxyProtocol()
 }
 
 // AutomountServiceAccountToken implements reloadable interface
@@ -333,10 +333,15 @@ func (cr *VMAlert) ProbePath() string {
 }
 
 func (cr *VMAlert) ProbeScheme() string {
-	return strings.ToUpper(HTTPProtoFromFlags(cr.Spec.ExtraArgs))
+	return strings.ToUpper(cr.Spec.Proto())
 }
 
 func (cr *VMAlert) ProbePort() string {
+	if l := cr.Spec.Primary(); l != nil {
+		if port := l.AddrPort(); port != "" {
+			return port
+		}
+	}
 	return cr.Spec.Port
 }
 
@@ -379,6 +384,9 @@ func (cr *VMAlert) PodAnnotations() map[string]string {
 func (cr *VMAlert) Validate() error {
 	if MustSkipCRValidation(cr) {
 		return nil
+	}
+	if err := cr.Spec.ValidateHTTPListeners(); err != nil {
+		return err
 	}
 	if cr.Spec.ServiceSpec != nil && cr.Spec.ServiceSpec.Name == cr.PrefixedName() {
 		return fmt.Errorf("spec.serviceSpec.Name cannot be equal to prefixed name=%q", cr.PrefixedName())
@@ -473,7 +481,12 @@ func (cr *VMAlert) GetMetricsPath() string {
 
 // UseTLS returns true if TLS is enabled
 func (cr *VMAlert) UseTLS() bool {
-	return UseTLS(cr.Spec.ExtraArgs)
+	return cr.Spec.Proto() == "https"
+}
+
+// PrimaryPortName returns the Service port name generated for the primary listener.
+func (cr *VMAlert) PrimaryPortName() string {
+	return cr.Spec.PrimaryPortName()
 }
 
 // GetExtraArgs returns additionally configured command-line arguments
@@ -519,13 +532,14 @@ func (cr *VMAlert) IsOwnsServiceAccount() bool {
 	return cr.Spec.ServiceAccountName == ""
 }
 
-func (cr *VMAlert) AsURL(isExtra bool) string {
+func (cr *VMAlert) AsURL(nsn NamespacedName) string {
 	specPort := cr.Spec.Port
 	if specPort == "" {
 		specPort = "8080"
 	}
-	svcName, port := ResolveServiceURL(cr.PrefixedName(), specPort, "http", cr.Spec.ServiceSpec, isExtra)
-	return fmt.Sprintf("%s://%s.%s.svc:%s", HTTPProtoFromFlags(cr.Spec.ExtraArgs), svcName, cr.Namespace, port)
+	specPort = cr.Spec.PrimaryPort(specPort)
+	svcName, port := ResolveServiceURL(cr.PrefixedName(), specPort, "http", cr.Spec.ServiceSpec, nsn.UseExtraService)
+	return cr.Spec.BuildServiceURL(svcName, cr.Namespace, port, nsn.ListenerName)
 }
 
 // IsUnmanaged checks if object should managed any  config objects

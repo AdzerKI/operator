@@ -49,18 +49,20 @@ func Test_CreateOrUpdate_Actions(t *testing.T) {
 			RemoteWrite: []vmv1beta1.VMAgentRemoteWriteSpec{
 				{URL: "http://remote-write"},
 			},
-			CommonAppsParams: vmv1beta1.CommonAppsParams{
-				ReplicaCount: ptr.To(int32(1)),
-			},
+			StandardAppsParams: vmv1beta1.StandardAppsParams{
+				CommonAppsParams: vmv1beta1.CommonAppsParams{
+					ReplicaCount: ptr.To(int32(1)),
+				}},
 		},
 		Status: vmv1beta1.VMAgentStatus{
 			LastAppliedSpec: &vmv1beta1.VMAgentSpec{
 				RemoteWrite: []vmv1beta1.VMAgentRemoteWriteSpec{
 					{URL: "http://remote-write"},
 				},
-				CommonAppsParams: vmv1beta1.CommonAppsParams{
-					ReplicaCount: ptr.To(int32(1)),
-				},
+				StandardAppsParams: vmv1beta1.StandardAppsParams{
+					CommonAppsParams: vmv1beta1.CommonAppsParams{
+						ReplicaCount: ptr.To(int32(1)),
+					}},
 			},
 		},
 	}
@@ -255,9 +257,10 @@ func TestCreateOrUpdate_StatefulSetWithHPA(t *testing.T) {
 			RemoteWrite: []vmv1beta1.VMAgentRemoteWriteSpec{
 				{URL: "http://remote-write"},
 			},
-			CommonAppsParams: vmv1beta1.CommonAppsParams{
-				ReplicaCount: ptr.To(int32(1)),
-			},
+			StandardAppsParams: vmv1beta1.StandardAppsParams{
+				CommonAppsParams: vmv1beta1.CommonAppsParams{
+					ReplicaCount: ptr.To(int32(1)),
+				}},
 			HPA: &vmv1beta1.EmbeddedHPA{
 				MinReplicas: ptr.To(int32(1)),
 				MaxReplicas: 5,
@@ -646,10 +649,11 @@ func TestCreateOrUpdate_Paused(t *testing.T) {
 			RemoteWrite: []vmv1beta1.VMAgentRemoteWriteSpec{
 				{URL: "http://remote-write"},
 			},
-			CommonAppsParams: vmv1beta1.CommonAppsParams{
-				ReplicaCount: ptr.To(int32(1)),
-				Paused:       true,
-			},
+			StandardAppsParams: vmv1beta1.StandardAppsParams{
+				CommonAppsParams: vmv1beta1.CommonAppsParams{
+					ReplicaCount: ptr.To(int32(1)),
+					Paused:       true,
+				}},
 		},
 	}
 	nsn := types.NamespacedName{Namespace: cr.Namespace, Name: cr.PrefixedName()}

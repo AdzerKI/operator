@@ -18,6 +18,7 @@ package operator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -33,6 +34,7 @@ import (
 	"github.com/VictoriaMetrics/operator/internal/config"
 	"github.com/VictoriaMetrics/operator/internal/controller/operator/factory/k8stools"
 	"github.com/VictoriaMetrics/operator/internal/controller/operator/factory/logger"
+	"github.com/VictoriaMetrics/operator/internal/controller/operator/factory/reconcile"
 	"github.com/VictoriaMetrics/operator/internal/controller/operator/factory/vmalertmanager"
 )
 
@@ -83,6 +85,7 @@ func (r *VMAlertmanagerConfigReconciler) Reconcile(ctx context.Context, req ctrl
 		return
 	}
 	if alertmanagerReconcileLimit.Throttle() {
+		err = reconcile.SyncAggregatedChildStatus(ctx, r.Client, &instance)
 		return
 	}
 
@@ -137,6 +140,7 @@ func (r *VMAlertmanagerConfigReconciler) Reconcile(ctx context.Context, req ctrl
 		})
 	}
 	err = g.Wait()
+	err = errors.Join(err, reconcile.SyncAggregatedChildStatus(ctx, r.Client, &instance))
 	return
 }
 

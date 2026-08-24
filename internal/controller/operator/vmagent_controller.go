@@ -105,6 +105,10 @@ func (r *VMAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 
 	RegisterObjectStat(&instance, r.name)
 	if !instance.DeletionTimestamp.IsZero() {
+		parentObject := fmt.Sprintf("%s.%s.vmagent", instance.Name, instance.Namespace)
+		if err = releaseScrapeChildStatuses(ctx, r.Client, parentObject); err != nil {
+			return
+		}
 		err = finalize.OnVMAgentDelete(ctx, r.Client, &instance)
 		return
 	}
@@ -166,7 +170,7 @@ func collectVMAgentScrapes(l logr.Logger, ctx context.Context, rclient client.Cl
 		objects.Items = append(objects.Items, dst.Items...)
 	}); err != nil {
 		err = fmt.Errorf("cannot list VMAgents for %T: %w", instance, err)
-		return
+		return err
 	}
 	var g errgroup.Group
 	g.SetLimit(childReconcileConcurrencyLimit)
@@ -206,5 +210,5 @@ func collectVMAgentScrapes(l logr.Logger, ctx context.Context, rclient client.Cl
 		})
 	}
 	err = g.Wait()
-	return
+	return err
 }
